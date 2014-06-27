@@ -1,5 +1,7 @@
 #Custom
 Credentials.cred
+TestCredentials.cred
+error.log
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

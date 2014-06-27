@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 #Jobs.py - contains classes designed to perform the various jobs of the Central Scruitnizer Bot
+#			A Job is different from an Action in that a job requires data to be loaded from reddit, and therefore
+#			must go through the JobQueue
 #Jobs include:
 #	Loading live reddit data
 #	Loading historical reddit data
 #	Adding/removing channels from the white/blacklists
 #	Generating reports
-#	Banning Users
 #	Writing/Reading from the database
 
 from Priorities import *
