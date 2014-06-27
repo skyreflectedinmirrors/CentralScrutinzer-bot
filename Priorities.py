@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
-#Priorities.py - contains a list of job priorities that can be modified according to your tastes
+# Priorities.py - contains a list of job priorities that can be modified according to your tastes
 #The lower the priority, the quicker the job will be excecuted
 
 #the basic scheme here is that live data / black/whitelisting is the most important

@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import bz2
-#liberally stolen from moderator-bot
+# liberally stolen from moderator-bot
 class Filter(object):
     """Base filter class"""
+
     def __init__(self):
         self.regex = None
         self.comment_template = (
@@ -45,7 +46,8 @@ class Filter(object):
                     return True
             except NotImplementedError:
                 pass
-				
+
+
 def cache_url():
     """Url caching decorator.  For decorating class functions that take a single url as an arg
     and return the response."""
@@ -75,10 +77,12 @@ def cache_url():
                 with bz2.open(CACHEFILE, 'wt') as f:
                     f.write(json.dumps(d))
                 return output
+
         return new_function
+
     return wrap
-	
-	
+
+
 class Youtube(object):
     def __init__(self, cache_time=0):
         self.opener = urllib.request.build_opener()
@@ -152,6 +156,7 @@ class Youtube(object):
             return True
         else:
             return False
+
 
 class YoutubeSpam(Filter):
     def __init__(self, reddit, youtube):
@@ -272,7 +277,7 @@ class YoutubeSpam(Filter):
                         self.log_text = "Found potential video spammer"
                         p(self.log_text + ":")
                         p("http://reddit.com/u/{}".format(submission.author.name),
-                            color_seed=submission.author.name)
+                          color_seed=submission.author.name)
                         user['warned'] = True
                     output = True
                 else:
@@ -282,7 +287,8 @@ class YoutubeSpam(Filter):
                 with bz2.open(DATABASEFILE, 'wt') as f:
                     f.write(json.dumps(db))
                 return output
-				
+
+
 class SpamNBan(Filter):
     def __init__(self):
         Filter.__init__(self)
@@ -293,8 +299,8 @@ class SpamNBan(Filter):
         self.action = 'spammed'
 
     def filterSubmission(self, submission):
-        if self.regex.search(submission.title) or\
-            self.regex.search(submission.selftext) or\
+        if self.regex.search(submission.title) or \
+                self.regex.search(submission.selftext) or \
                 self.regex.search(submission.url):
             self.log_text = "Found spam domain in submission"
             p(self.log_text + ":")
@@ -308,9 +314,10 @@ class SpamNBan(Filter):
             p(self.log_text + ":")
             p('http://reddit.com/r/{}/comments/{}/a/{}'.format(
                 comment.subreddit.display_name, comment.link_id[3:], comment.id),
-                color_seed=comment.link_id)
+              color_seed=comment.link_id)
             return True
-			
+
+
 class BannedYoutubers(Filter):
     def __init__(self, reddit, youtube):
         self.last_update = 0

@@ -2,6 +2,7 @@
 Credentials.cred
 TestCredentials.cred
 error.log
+/.idea
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
