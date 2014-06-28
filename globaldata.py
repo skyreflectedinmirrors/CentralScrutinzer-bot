@@ -4,7 +4,6 @@
 import logging
 import sys
 
-
 def init():
     global Log
     Log = logging.getLogger()
@@ -22,3 +21,7 @@ def init():
     # add the handlers to the logger
     Log.addHandler(fh)
     Log.addHandler(ch)
+
+    #define verbose
+    global Verbose
+    Verbose = False

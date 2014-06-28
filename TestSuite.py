@@ -23,6 +23,44 @@ def getCaptcha(sub):
             print 'please enter captcha resposne for\n' + "www.reddit.com/captcha/" + captcha['iden'] + ".png"
             captcha['captcha'] = raw_input()
 
+def print_posts(posts):
+    try:
+        for posts in posts:
+            print posts.title
+    except:
+        pass
+
+def print_comments(comments):
+    try:
+        for comment in comments:
+            print comment.text
+    except:
+        pass
+
+def testRemoveComment(Comment):
+    #spawn an action
+    action = Actions.RemoveComment(Comment)
+    action.execute()
+    action.callback()
+
+def testGetComments(Post):
+    action = Actions.GetComments(Post, print_comments)
+    action.execute()
+    action.callback()
+
+def testMakeComment(Post):
+    #spawn an action
+    action = Actions.MakeComment(Post, "test comment")
+    action.execute()
+    action.callback()
+    return action.Comment
+
+def testGetPosts(sub):
+    #spawn an action
+    action = Actions.GetPosts(sub, print_posts)
+    action.execute()
+    action.callback()
+
 
 def testMakePost(sub):
     #spawn a  action
@@ -72,14 +110,25 @@ def main():
     p = testMakePost(sub)
 
     #run RemovePost test
-    testRemovePost(sub, p)
-
-    #run RemovePost test
     testBanUser(sub, "StudabakerHoch")
 
     #run RemovePost test
     testUnBanUser(sub, "StudabakerHoch")
 
+    #run get post test
+    testGetPosts(sub)
+
+    #run make comment test
+    c = testMakeComment(p)
+
+    #run get comments post
+    testGetComments(p)
+
+    #run make comment test
+    testRemoveComment(c)
+
+    #run RemovePost test
+    testRemovePost(sub, p)
 
 if (__name__ == "__main__"):
     main()
