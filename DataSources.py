@@ -7,38 +7,41 @@
 
 from Jobs import Job
 from DataBase import DataBase
+import praw.helpers
+import globaldata as g
 
 #base data source implementation
 class DataSource(object):
-    def __init__(self, JobQueue, ErrorLog):
+    def __init__(self):
         self.ready = False
-        self.JobQueue = JobQueue
-        self.Log = ErrorLog
-
-    def addJob(Job):
-        try:
-            self.JobQueue.put((Job.Priority, Job))
-        except TypeError, e:
-            Log.log("Submitted job was not of right type: " + str(e)
-
-            #A class designed to scan historical data
+    def get_data(self):
+        raise Exception("DataSource::get_data() not implemented!")
 
 
 class HistoricalDataSource(DataSource):
-    def __init__(self, Reddit, JobQueue, ErrorLog):
-        super(HistoricalDataSource, self).__init(self, JobQueue, ErrorLog)
-        self.Reddit = Reddit
+    def __init__(self, reddit, sub, limit=100):
+        super(HistoricalDataSource, self).__init(self)
+        self.sub = sub
+        self.r = reddit
+        self.limit = limit
+        self.stream = praw.helpers.submission_stream(self.r, self.sub, limit = self.limit)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            self.stream.close()
+        except Exception, e:
+            g.write_error(e)
+
+    def get_data(self):
+        ret_arr = []
+        for i in range(self.limit):
+            ret_arr.append(self.stream.next())
+        return ret_arr
 
 
 #A class designed to process live feed data
 class LiveDataSource(DataSource):
-    def __init__(self, Reddit, JobQueue, ErrorLog):
-        super(LiveDataSource, self).__init(self, Reddit, JobQueue, ErrorLog)
-        self.Reddit = Reddit
-
-
-class DataBaseSource(DataSource):
-    def __init__(self, DataBase, JobQueue, ErrorLog):
-        super(LiveDataSource, self).__init(self, Reddit, JobQueue, ErrorLog)
-        self.DataBase = DataBase
-		
+    def __init__(self, sub, JobQueue):
+        super(LiveDataSource, self).__init(self)
+        self.sub = sub
+        self.JobQueue = JobQueue

@@ -2,210 +2,103 @@
 # An action is different from a job in that an action DOES NOT require loading of data from Reddit
 
 import globaldata as g
+import logging
+
+import praw.errors
 
 
-class ActionType:
-    RemovePost, MakePost, BanUser, UnBanUser, GetPosts, MakeComment, RemoveComment, GetComments = range(8)
-
-#utility methods
-
-#write error to log
-def write_error(exception):
-    g.Log.error(str(exception))
-
-#write info to log
-def write_info(Success, message):
-    if g.Verbose:
-        g.Log.info(message)
-    elif not Success:
-        g.Log.info(message)
-
-#make callback
-def make_callback(callback, data):
-    Success = True
+def make_post(sub, title, message, callback=None, distinguish=False):
     try:
+        # create a post
+        post = sub.submit("testpost", "please ignore", raise_captcha_exception=True)
         if callback:
-            callback(data)
+            callback(post)
+        logging.info("Post " + post.title + " created.")
+    except praw.errors.InvalidCaptcha, e:
+        logging.warning("Warning: invalid captcha detected")
     except Exception, e:
-        Success = False
-        write_error(e)
-    return Success
+        logging.error(str(e))
+        logging.warning("Post " + title + " not created.")
 
 
-# base Action definition
-#has method stubs for execute
-class Action(object):
-    def __init__(self, a_type):
-        self.a_type = a_type
-        self.Success = None
-
-    def execute(self):
-        raise Exception("Cannot instantiate base Action class!")
-
-    def callback(self):
-        #do nothing
-        pass
+def remove_post(post, callback=None, mark_spam=True):
+    try:
+        post.remove(spam=mark_spam)
+        if callback:
+            callback(True)
+        logging.info("Post " + post.title + " was removed")
+    except Exception, e:
+        logging.error(str(e))
+        logging.warning("Post " + str(post) + " was removed")
 
 
-#makes the specified post
-class MakePost(Action):
-    def __init__(self, sub, title, message, captcha, distinguish=False):
-        super(MakePost, self).__init__(ActionType.MakePost)
-        self.sub = sub
-        self.title = title
-        self.message = message
-        self.distinguish = False
-        self.Post = None
-        self.captcha = captcha
-
-    def execute(self):
-        try:
-            #create a post
-            self.Post = self.sub.submit("testpost", "please ignore", raise_captcha_exception=True, captcha=self.captcha)
-            self.Success = True
-        except Exception, e:
-            self.Success = False
-            write_error(e)
-
-    def callback(self):
-        if (self.Success):
-            write_info(True, "Posted " + self.Post.title)
-        else:
-            write_info(False, "Post was not made successfully")
+def ban_user(sub, reason, user, callback=None):
+    try:
+        sub.add_ban(user)
+        if (callback):
+            callback(True)
+        logging.info("User " + str(user) + " was banned for " + str(reason))
+    except Exception, e:
+        logging.error(str(e))
+        logging.warning("User " + str(user) + " was not successfully banned for " + str(reason))
 
 
-#makes the removes the specified post
-class RemovePost(Action):
-    def __init__(self, Post, mark_spam=False):
-        super(RemovePost, self).__init__(ActionType.RemovePost)
-        self.Post = Post
-        self.mark_spam = mark_spam
-
-    def execute(self):
-        try:
-            self.Post.remove(spam=self.mark_spam)
-            self.Success = True
-        except Exception, e:
-            write_error(e)(e)
-            self.Success = False
-
-    def callback(self):
-        write_info(self.Success, "Post " + self.Post.title + (" was " if self.Success else "was not ") + "removed successfully!")
+def unban_user(sub, user, callback=None):
+    try:
+        sub.remove_ban(user)
+        if callback:
+            callback(True)
+        logging.info("User " + str(user) + " unbanned successfully.")
+    except Exception, e:
+        logging.error(str(e))
+        logging.warning("User " + str(user) + " not unbanned successfully.")
 
 
-#bans user from subreddit
-class BanUser(Action):
-    def __init__(self, sub, reason, user):
-        super(BanUser, self).__init__(ActionType.BanUser)
-        self.sub = sub
-        self.reason = reason
-        self.user = user
-
-    def execute(self):
-        try:
-            self.sub.add_ban(self.user)
-            self.Success = True
-        except Exception, e:
-            write_error(e)
-            self.Success = False
-
-    def callback(self):
-        write_info(self.Success, "User " + self.user + (" was " if self.Success else "was not ") + "banned for " + self.reason)
+def get_posts(sub, callback=None, limit=20):
+    try:
+        posts = sub.get_new(limit=limit)
+        if callback:
+            callback(posts)
+        if logging.getLogger().getEffectiveLevel() >= logging.INFO:
+            logging.info("Posts " + ', '.join([str(post.id) for post in posts]) + " were made successfully.")
+    except Exception, e:
+        logging.info("Posts not made correctly")
+        logging.warning(str(e))
 
 
-#unbans user from subreddit
-class UnBanUser(Action):
-    def __init__(self, sub, user):
-        super(UnBanUser, self).__init__(ActionType.UnBanUser)
-        self.sub = sub
-        self.user = user
-
-    def execute(self):
-        try:
-            self.sub.remove_ban(self.user)
-            self.Success = True
-        except Exception, e:
-            write_error(e)
-            self.Success = False
-
-    def callback(self):
-        write_info(self.Success, "User " + self.user + (" was " if self.Success else "was not ") + "unbanned successfully!")
+def make_comment(post, text, callback=None):
+    try:
+        comment = post.add_comment(text)
+        if callback:
+            callback(comment)
+        logging.info("Comment " + str(comment) + " was made successfully!")
+    except Exception, e:
+        logging.error(str(e))
+        logging.warning("Comment " + (comment) + " was made successfully!")
 
 
-class GetPosts(Action):
-    def __init__(self, sub, my_callback, limit=20):
-        super(GetPosts, self).__init__(ActionType.GetPosts)
-        self.sub = sub
-        self.limit = limit
-        self.Posts = None
-        self.my_callback = my_callback
-
-    def execute(self):
-        try:
-            self.Posts = self.sub.get_new(limit=self.limit)
-            self.Success = True
-        except Exception, e:
-            write_error(e)
-            self.Success = False
-
-    def callback(self):
-        self.Success &= make_callback(self.my_callback, self.Posts)
-        write_info(self.Success, "Posts " + (" were " if self.Success else "were not ") + "retrieved successfully!")
+import praw.helpers as helper
 
 
-class MakeComment(Action):
-    def __init__(self, post, text):
-        super(MakeComment, self).__init__(ActionType.MakeComment)
-        self.post = post
-        self.text = text
-        self.Comment = None
-
-    def execute(self):
-        try:
-            self.Comment = self.post.add_comment(self.text)
-            print self.Comment
-            self.Success = True
-        except Exception, e:
-            write_error(e)
-            self.Success = False
-
-    def callback(self):
-        write_info(self.Success, "Comment " + (" was " if self.Success else "was not ") + "made successfully!")
-
-import praw.helpers as help
-class GetComments(Action):
-    def __init__(self, post, my_callback = None):
-        super(GetComments, self).__init__(ActionType.GetComments)
-        self.Comments = None
-        self.post = post
-        self.my_callback = my_callback
-
-    def execute(self):
-        try:
-            self.Comments = help.flatten_tree(self.post.comments)
-            self.Success = True
-        except Exception, e:
-            write_error(e)
-            self.Success = False
-
-    def callback(self):
-        self.Success &= make_callback(self.my_callback, self.Comments)
-        write_info(self.Success, "Comments " + (" were " if self.Success else "were not ") + "retrieved successfully!")
+def get_comments(post, callback):
+    try:
+        comments = helper.flatten_tree(post.comments)
+        if callback:
+            callback(comments)
+        # only write if needed
+        if logging.getLogger().getEffectiveLevel() >= logging.INFO:
+            logging.info("Comments " + ', '.join([str(comment.id) for comment in comments]) + " retrieved successfully")
+    except Exception, e:
+        logging.error(str(e))
+        logging.warning("Comments not retrieved successfully")
 
 
-class RemoveComment(Action):
-    def __init__(self, comment, mark_spam = False):
-        super(RemoveComment, self).__init__(ActionType.RemoveComment)
-        self.comment = comment
-        self.mark_spam = mark_spam
-
-    def execute(self):
-        try:
-            self.comment.remove(spam = self.mark_spam)
-            self.Success = True
-        except Exception, e:
-            write_error(e)
-            self.Success = False
-
-    def callback(self):
-        write_info(self.Success, "Comment " + (" was " if self.Success else "was not ") + "removed successfully!")
+def remove_comment(comment, callback=None, mark_spam=False):
+    try:
+        comment.remove(spam=mark_spam)
+        if callback:
+            callback(comment)
+        logging.info("Comment" + str(comment) + " removed successfully")
+    except Exception, e:
+        logging.error(str(e))
+        logging.warning("Comment" + str(comment) + " not removed successfully")

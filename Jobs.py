@@ -20,6 +20,10 @@ class Job(object):
         self.Priority = Priority
 
     #a method stub to be overridden in base classes
+    def ProcessData(self):
+        raise Exception("Job::ProcessData() not implemented!")
+
+    #a method stub to be overridden in base classes
     def run(self):
         raise Exception("Job::run() not implemented!")
 
@@ -55,3 +59,5 @@ class LiveDataJob(object):
         self.IsUsable = False
         self.Lock.release()
         raise Exception("Not implemented!")
+
+

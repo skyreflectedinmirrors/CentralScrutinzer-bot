@@ -4,24 +4,22 @@
 
 import praw
 import praw.errors as perr
+import praw.handlers as phand
 from CredentialsImport import CRImport
 import DataBase
-import Actions
+import Actions as a
 import globaldata as g
+import utilitymethods as u
 
-captcha = {}
-#captcha['iden'] = 'YkKvOED85SiFLiJrGJn6LXhZ7RgJqe5a'
-#captcha['captcha'] = 'qlupyz'
+def store_post(post):
+    global my_post
+    my_post = post
+    print "my_post = "  + my_post.title
 
-def getCaptcha(sub):
-    global captcha
-    if (not captcha):
-        try:
-            post = sub.submit("testpost", text="please ignore", raise_captcha_exception=True)
-        except perr.InvalidCaptcha, err:
-            captcha['iden'] = err.response['captcha']
-            print 'please enter captcha resposne for\n' + "www.reddit.com/captcha/" + captcha['iden'] + ".png"
-            captcha['captcha'] = raw_input()
+def store_comment(comment):
+    global my_comment
+    my_comment = comment
+    print "my_comment = "  + my_comment.id
 
 def print_posts(posts):
     try:
@@ -37,77 +35,59 @@ def print_comments(comments):
     except:
         pass
 
-def testRemoveComment(Comment):
-    #spawn an action
-    action = Actions.RemoveComment(Comment)
-    action.execute()
-    action.callback()
+def testMultiprocess(credentials):
+    #create my reddit
+    return u.create_multiprocess_praw(credentials)
 
-def testGetComments(Post):
-    action = Actions.GetComments(Post, print_comments)
-    action.execute()
-    action.callback()
-
-def testMakeComment(Post):
+def testRemoveComment(comment):
     #spawn an action
-    action = Actions.MakeComment(Post, "test comment")
-    action.execute()
-    action.callback()
-    return action.Comment
+    a.remove_comment(comment)
+
+def testGetComments(post):
+    a.get_comments(post, print_comments)
+
+def testMakeComment(post):
+    #spawn an action
+    a.make_comment(post, "test comment", store_comment)
 
 def testGetPosts(sub):
     #spawn an action
-    action = Actions.GetPosts(sub, print_posts)
-    action.execute()
-    action.callback()
+    a.get_posts(sub, print_posts)
 
 
 def testMakePost(sub):
     #spawn a  action
-    action = Actions.MakePost(sub, "testpost", "please ignore", captcha)
-    action.execute()
-    action.callback()
-    return action.Post
+    a.make_post(sub, "testpost", "please ignore", store_post)
 
 
 def testRemovePost(sub, post=None):
-    if (not post):
-        #create a post
-        post = sub.submit("testpost", text="please ignore", raise_captcha_exception=True, captcha=captcha)
     #spawn a Removal action
-    action = Actions.RemovePost(post)
-    action.execute()
-    action.callback()
+    a.remove_post(post)
 
 
 def testBanUser(sub, user):
     #spawn a Removal action
-    action = Actions.BanUser(sub, "test", user)
-    action.execute()
-    action.callback()
+    a.ban_user(sub, "test", user)
 
 
 def testUnBanUser(sub, user):
     #spawn a Removal action
-    action = Actions.UnBanUser(sub, user)
-    action.execute()
-    action.callback()
+    a.unban_user(sub, user)
 
 
 def main():
     g.init()
+    g.close()
     #import credentials
     credentials = CRImport("TestCredentials.cred")
+
     #create my reddit
-    r = praw.Reddit(user_agent=credentials['USERAGENT'])
-    r.login(credentials['USERNAME'], credentials['PASSWORD'])
+    r = u.create_praw(credentials)
+
     sub = r.get_subreddit(credentials['SUBREDDIT'])
 
-    #get Capthca
-    getCaptcha(sub)
-
     #run MakePost test
-    p = testMakePost(sub)
+    testMakePost(sub)
 
     #run RemovePost test
     testBanUser(sub, "StudabakerHoch")
@@ -119,16 +99,22 @@ def main():
     testGetPosts(sub)
 
     #run make comment test
-    c = testMakeComment(p)
+    testMakeComment(my_post)
 
     #run get comments post
-    testGetComments(p)
+    testGetComments(my_post)
 
     #run make comment test
-    testRemoveComment(c)
+    testRemoveComment(my_comment)
 
     #run RemovePost test
-    testRemovePost(sub, p)
+    testRemovePost(sub, my_post)
+
+    #run multiproc handler test
+    r = testMultiprocess(credentials)
+
+    import logging
+    logging.info("Tests complete")
 
 if (__name__ == "__main__"):
     main()
