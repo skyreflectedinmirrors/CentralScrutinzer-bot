@@ -1,6 +1,6 @@
 # Test-Suite.py
 
-#I'm a man who (now) believes in unit test driven developement, so this is where the unit tests live!
+#I'm a man who (now) believes in unit test driven development, so this is where the unit tests live!
 
 import praw
 import praw.errors as perr
@@ -55,9 +55,9 @@ def testGetPosts(sub):
     a.get_posts(sub, print_posts)
 
 
-def testMakePost(sub):
+def testMakePostText(sub):
     #spawn a  action
-    a.make_post(sub, "testpost", "please ignore", store_post)
+    a.make_post_text(sub, "testpost", "please ignore", store_post)
 
 
 def testRemovePost(sub, post=None):
@@ -87,7 +87,7 @@ def main():
     sub = r.get_subreddit(credentials['SUBREDDIT'])
 
     #run MakePost test
-    testMakePost(sub)
+    testMakePostText(sub)
 
     #run RemovePost test
     testBanUser(sub, "StudabakerHoch")
