@@ -6,7 +6,7 @@ import sys
 import atexit
 
 Debug = True
-Exectution = not Debug
+Execution = not Debug
 
 def init():
     Log = logging.getLogger()
@@ -25,7 +25,7 @@ def init():
         # add the handlers to the logger
         Log.addHandler(fh)
         Log.addHandler(ch)
-    elif(Exectution):
+    elif(Execution):
         raise Exception()
 
     #schedule log closing for exit
