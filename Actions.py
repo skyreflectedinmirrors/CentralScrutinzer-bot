@@ -7,10 +7,10 @@ import logging
 import praw.errors
 
 
-def make_post(sub, title, message, callback=None, distinguish=False):
+def make_post_text(sub, title, message, callback=None, distinguish=False):
     try:
         # create a post
-        post = sub.submit("testpost", "please ignore", raise_captcha_exception=True)
+        post = sub.submit(title, text=message, raise_captcha_exception=True)
         if callback:
             callback(post)
         logging.info("Post " + post.title + " created.")
@@ -20,10 +20,28 @@ def make_post(sub, title, message, callback=None, distinguish=False):
         logging.error(str(e))
         logging.warning("Post " + title + " not created.")
 
-
-def remove_post(post, callback=None, mark_spam=True):
+def make_post_url(sub, title, url, callback=None, distinguish=False):
+    post = None
     try:
-        post.remove(spam=mark_spam)
+        # create a post
+        post = sub.submit(title, url=url, raise_captcha_exception=True)
+        if callback:
+            callback(post)
+        logging.info("Post " + post.title + " created.")
+    except praw.errors.InvalidCaptcha, e:
+        logging.warning("Warning: invalid captcha detected")
+    except Exception, e:
+        logging.error(str(e))
+        logging.warning("Post " + title + " not created.")
+    return post
+
+
+def remove_post(post, callback=None, mark_spam=False, delete=False):
+    try:
+        if(delete):
+            post.delete()
+        else:
+            post.remove(spam=mark_spam)
         if callback:
             callback(True)
         logging.info("Post " + post.title + " was removed")
