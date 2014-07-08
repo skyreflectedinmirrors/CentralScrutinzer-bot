@@ -28,9 +28,10 @@ def create_praw(credentials):
         logging.warning("Failed to create PRAW object")
         return None
 
-def get_subreddit(credentials, praw):
+def get_subreddit(credentials, praw, subreddit = None):
     try:
-        sub = praw.get_subreddit(credentials['SUBREDDIT'])
+        subreddit = subreddit if subreddit else credentials['SUBREDDIT']
+        sub = praw.get_subreddit(subreddit)
         logging.info("Retrieved subreddit object")
         return sub
     except Exception, e:
