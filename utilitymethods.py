@@ -3,7 +3,6 @@ import praw as p
 import logging
 import praw.errors as errors
 
-import psutil
 import subprocess
 def create_multiprocess_praw(credentials):
     #create my reddit
