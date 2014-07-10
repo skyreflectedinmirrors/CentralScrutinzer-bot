@@ -10,6 +10,7 @@ import DataBase
 import Actions as a
 import globaldata as g
 import utilitymethods as u
+import DataExtractors
 
 def store_post(post):
     global my_post
@@ -74,12 +75,49 @@ def testUnBanUser(sub, user):
     #spawn a Removal action
     a.unban_user(sub, user)
 
+def testYoutubeExtractor(credentials):
+    y = DataExtractors.YoutubeExtractor(credentials['GOOGLEID'])
+    id_to_response = {
+        "https://www.youtube.com/watch?v=-vihDAj5VkY": "UC9TOJlW5ZLaiWdMjAUoTpqQ",
+        "https://m.youtube.com/watch?v=G4ApQrbhQp8": "UCKy1dAqELo0zrOtPkf0eTMw",
+        "http://youtu.be/Cg9PWSHL4Vg": "UCEvxaotno5fO12ylDsV1hpQ",
+        "https://www.youtube.com/watch?v=iMoNJ_UiRQY": "PRIVATE",
+        "https://www.youtube.com/watch?v=WkqziN8F8oM": "UCEsBZQzpSmHbzFTUva00Wlw"
+    }
+    channel_to_name = {
+        "UC9TOJlW5ZLaiWdMjAUoTpqQ": "arghdos",
+        "UCKy1dAqELo0zrOtPkf0eTMw": "IGN",
+        "UCEvxaotno5fO12ylDsV1hpQ": "Karen Jones",
+        "UCEsBZQzpSmHbzFTUva00Wlw": "BBrucker2"
+    }
+
+    url_to_name = {
+        "https://www.youtube.com/watch?v=iMoNJ_UiRQY": "PRIVATE",
+    }
+
+    for id, response in id_to_response.iteritems():
+        print id, response
+        if y.channel_id(id) != response:
+            return False
+
+    for channel, id in channel_to_name.iteritems():
+        if y.channel_name(channel) != channel_to_name[channel]:
+            return False
+
+    for url, id in url_to_name.iteritems():
+        if y.channel_name_url(url) != url_to_name[url]:
+            return False
+
+    return True
+
 
 def main():
     g.init()
     g.close()
     #import credentials
     credentials = CRImport("TestCredentials.cred")
+
+    testYoutubeExtractor(credentials)
 
     #create my reddit
     r = u.create_praw(credentials)
