@@ -55,7 +55,7 @@ class SoundCloudExtractor(IdentificationExtractor):
     def channel_name(self, id):
         return id
 
-class YoutubeExtractor(object):
+class YoutubeExtractor(IdentificationExtractor):
     def __init__(self, key):
         super(YoutubeExtractor, self).__init__()
         self.base_url = 'https://www.googleapis.com/youtube/v3'
@@ -125,3 +125,26 @@ class YoutubeExtractor(object):
             yt_id = yt_id[0].split('#')[0]
             yt_id = yt_id.split('?')[0]
             return yt_id
+
+from urlparse import urlsplit
+class BandCampExtractor(IdentificationExtractor):
+    def __init__(self):
+        super(BandCampExtractor, self).__init__()
+
+    #returns the channel name from a channel id
+    def channel_name(self, id):
+        return id
+
+    #returns the channel id from a url
+    def channel_id(self, url):
+        if not re.match(r'http(s?)\:', url):
+            url = 'http://' + url
+        try:
+            parsed = urlsplit(url)
+            retval = parsed.netloc
+            if retval.startswith("www."):
+                retval = retval[4:]
+            return retval
+        except Exception, e:
+            logging.error("Bad request for bandcamp page " + str(url))
+            return None
