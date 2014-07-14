@@ -120,7 +120,21 @@ def testSoundcloudExtractor(credentials):
         "https://soundcloud.com/NOTAREALURL": None
     }
 
-    responses = []
+    for id, response in id_to_response.iteritems():
+        print id, response
+        if y.channel_name_url(id) != response:
+            return False
+    return True
+
+def testBandcampExtractor(credentials):
+    y = DataExtractors.BandCampExtractor()
+
+    id_to_response = {
+        "http://wayneszalinski.bandcamp.com/": "wayneszalinski.bandcamp.com",
+        "http://www.sleepwalkersbandcamp.bandcamp.com/": "sleepwalkersbandcamp.bandcamp.com",
+        "http://rivka.bandcamp.com/track/better-days": "rivka.bandcamp.com"
+    }
+
     for id, response in id_to_response.iteritems():
         print id, response
         if y.channel_name_url(id) != response:
@@ -133,6 +147,8 @@ def main():
     g.close()
     #import credentials
     credentials = CRImport("TestCredentials.cred")
+
+    testBandcampExtractor(credentials)
 
     testSoundcloudExtractor(credentials)
 
