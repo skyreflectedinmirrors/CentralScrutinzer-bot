@@ -9,8 +9,55 @@ import apiclient.errors
 import re
 import logging
 
+#base class for extractors
+class IdentificationExtractor(object):
+
+     #returns the channel id from a url
+    def channel_id(self, url):
+        raise NotImplementedError
+
+    #returns the channel name from a channel id
+    def channel_name(self, id):
+        raise NotImplementedError
+
+    #returns the channel name from a url
+    def channel_name_url(self, url):
+        return self.channel_name(self.channel_id(url))
+
+class SoundCloudExtractor(IdentificationExtractor):
+    def __init__(self, key):
+        super(SoundCloudExtractor, self).__init__()
+        self.soundcloud = soundcloud.Client(client_id=key)
+
+    #returns the channel id from a url
+    def channel_id(self, url):
+        #query server
+        response = None
+        try:
+            #resolve the url
+            response = self.soundcloud.get('/resolve', url=url)
+        except Exception, e:
+            logging.error("Bad resolve for soundcloud " + str(url))
+            return None
+
+        try:
+            return response.username
+        except AttributeError:
+            try:
+                return response.user['username']
+            except AttributeError:
+                logging.info("Deleted or private soundcloud user requested: {}".format(url))
+                return "PRIVATE"
+        except Exception, e:
+            logging.error(str(e))
+
+    #returns the channel name from a channel id
+    def channel_name(self, id):
+        return id
+
 class YoutubeExtractor(object):
     def __init__(self, key):
+        super(YoutubeExtractor, self).__init__()
         self.base_url = 'https://www.googleapis.com/youtube/v3'
         self.videos_url = '/videos/'
         self.key = key
@@ -22,7 +69,7 @@ class YoutubeExtractor(object):
     #returns the channel name from a channel id
     def channel_name(self, id):
         #avoid asking if the ID is marked PRIVATE
-        if id == "PRIVATE":
+        if id == "PRIVATE" or id == None:
             return id
 
         # ask for channel w/ id
@@ -41,10 +88,6 @@ class YoutubeExtractor(object):
         except Exception, e:
             logging.error()
         return response
-
-    #returns the channel name from a url
-    def channel_name_url(self, url):
-        return self.channel_name(self.channel_id(url))
 
     #returns the channel id from a url
     def channel_id(self, url):
