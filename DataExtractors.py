@@ -11,26 +11,32 @@ import logging
 
 #base class for extractors
 class IdentificationExtractor(object):
-
-     #returns the channel id from a url
+    def __init__(self, name, domains):
+        self.name = name
+        self.domains = domains
     def channel_id(self, url):
+        """returns the channel id from the url
+
+        :param url: the url to check
+        :return: the channel id, else None if an error occurs
+        """
         raise NotImplementedError
 
-    #returns the channel name from a channel id
-    def channel_name(self, id):
-        raise NotImplementedError
 
-    #returns the channel name from a url
-    def channel_name_url(self, url):
-        return self.channel_name(self.channel_id(url))
 
 class SoundCloudExtractor(IdentificationExtractor):
     def __init__(self, key):
-        super(SoundCloudExtractor, self).__init__()
+        super(SoundCloudExtractor, self).__init__("soundcloud", ["soundcloud.com"])
         self.soundcloud = soundcloud.Client(client_id=key)
 
     #returns the channel id from a url
     def channel_id(self, url):
+        """the soundcloud username
+
+        :param url: the url to check
+        :return: the soundcloud user name if found, private if a deleted or private link is used, None if an error occurs
+        """
+
         #query server
         response = None
         try:
@@ -51,13 +57,9 @@ class SoundCloudExtractor(IdentificationExtractor):
         except Exception, e:
             logging.error(str(e))
 
-    #returns the channel name from a channel id
-    def channel_name(self, id):
-        return id
-
 class YoutubeExtractor(IdentificationExtractor):
     def __init__(self, key):
-        super(YoutubeExtractor, self).__init__()
+        super(YoutubeExtractor, self).__init__("youtube", ['youtu.be', 'youtube.com', 'm.youtube.com'])
         self.base_url = 'https://www.googleapis.com/youtube/v3'
         self.videos_url = '/videos/'
         self.key = key
@@ -66,33 +68,10 @@ class YoutubeExtractor(IdentificationExtractor):
             r'''(?<=(?:v|i)=)[^&\n]+|(?<=youtu.be\/)[^&\n]+''', re.I)
         self.youtube = build('youtube', 'v3', developerKey=self.key)
 
-    #returns the channel name from a channel id
-    def channel_name(self, id):
-        #avoid asking if the ID is marked PRIVATE
-        if id == "PRIVATE" or id == None:
-            return id
-
-        # ask for channel w/ id
-        try:
-            response = self.youtube.channels().list(part='snippet', id=id).execute()
-        except apiclient.errors.HttpError:
-            logging.error("Bad request for youtube video id " + str(id))
-            return None
-
-        try:
-            #should be the first id in the list
-            response = response.get("items")[0].get("snippet").get("title")
-        except IndexError:
-            logging.info("Deleted or private youtube channel requested: {}".format(id))
-            return "PRIVATE"
-        except Exception, e:
-            logging.error()
-        return response
-
     #returns the channel id from a url
     def channel_id(self, url):
         #first get video id
-        id = self._get_id(url)
+        id = self.__get_video_id(url)
         if not id:
             return None
 
@@ -112,9 +91,32 @@ class YoutubeExtractor(IdentificationExtractor):
             return "PRIVATE"
         except Exception, e:
             logging.error()
+
+
+         #avoid asking if the ID is marked PRIVATE
+        if response == "PRIVATE" or response == None:
+            return response
+
+        # ask for channel w/ id
+        try:
+            response = self.youtube.channels().list(part='snippet', id=response).execute()
+        except apiclient.errors.HttpError:
+            logging.error("Bad request for youtube video id " + str(response))
+            return None
+
+        try:
+            #should be the first id in the list
+            response = response.get("items")[0].get("snippet").get("title")
+        except IndexError:
+            logging.info("Deleted or private youtube channel requested: {}".format(id))
+            return "PRIVATE"
+        except Exception, e:
+            logging.error()
         return response
 
-    def _get_id(self, url):
+
+    def __get_video_id(self, url):
+        """Given a url, this returns the video id for a youtube video"""
         # regex via: http://stackoverflow.com/questions/3392993/php-regex-to-get-youtube-video-id
 
         yt_id = self.regex.findall(
@@ -125,26 +127,17 @@ class YoutubeExtractor(IdentificationExtractor):
             yt_id = yt_id[0].split('#')[0]
             yt_id = yt_id.split('?')[0]
             return yt_id
+        return None
 
-from urlparse import urlsplit
+from utilitymethods import domain_extractor
 class BandCampExtractor(IdentificationExtractor):
     def __init__(self):
-        super(BandCampExtractor, self).__init__()
+        super(BandCampExtractor, self).__init__("bandcamp", ["bandcamp.com"])
 
-    #returns the channel name from a channel id
-    def channel_name(self, id):
-        return id
-
-    #returns the channel id from a url
     def channel_id(self, url):
-        if not re.match(r'http(s?)\:', url):
-            url = 'http://' + url
-        try:
-            parsed = urlsplit(url)
-            retval = parsed.netloc
-            if retval.startswith("www."):
-                retval = retval[4:]
-            return retval
-        except Exception, e:
-            logging.error("Bad request for bandcamp page " + str(url))
-            return None
+        """returns the channel id from a url
+        By default only the domain is returned, e.g.:
+        "http://www.sleepwalkersbandcamp.bandcamp.com/" -> "sleepwalkersbandcamp.bandcamp.com"
+        :returns: the id, or None if an error is encountered
+        """
+        return domain_extractor(url)
