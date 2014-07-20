@@ -3,7 +3,27 @@ import praw as p
 import logging
 import praw.errors as errors
 
-import subprocess
+import re
+from urlparse import urlsplit
+def domain_extractor(url):
+    """returns the netloc part of a url w/ exception handling
+
+    :param url: the url to check
+    :return: the domain of the url (i.e. netloc as determined by urlparse
+    """
+    if not re.match(r'http(s?)\:', url):
+        url = 'http://' + url
+    try:
+        parsed = urlsplit(url)
+        retval = parsed.netloc
+        if retval.startswith("www."):
+            retval = retval[4:] #ignore any www. for consistency
+        return retval
+    except Exception, e:
+        logging.error("Bad url sent for domain extraction " + str(url))
+        return None
+
+import socket
 def create_multiprocess_praw(credentials):
     #create my reddit
     my_handler = h.MultiprocessHandler()
@@ -12,9 +32,9 @@ def create_multiprocess_praw(credentials):
         r.login(username=credentials['USERNAME'], password=credentials['PASSWORD'])
         logging.info("Multi-process handler sucessfully started")
         return r
-    except Exception, e:
+    except socket.error, e:
         logging.error(str(e))
-        logging.warning("Failed to create Multi-process PRAW object")
+        logging.critical("Failed to create Multi-process PRAW object, bad credentials or praw-multiprocess not started")
         return None
 
 def create_praw(credentials):
@@ -22,9 +42,9 @@ def create_praw(credentials):
         r = p.Reddit(user_agent=credentials['USERAGENT'])
         r.login(username=credentials['USERNAME'], password=credentials['PASSWORD'])
         return r
-    except Exception, e:
+    except socket.error, e:
         logging.error(str(e))
-        logging.warning("Failed to create PRAW object")
+        logging.critical("Failed to create PRAW object: bad credentials")
         return None
 
 def get_subreddit(credentials, praw, subreddit = None):
