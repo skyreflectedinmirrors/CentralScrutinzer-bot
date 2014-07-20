@@ -1,10 +1,10 @@
 # Actions.py - contains classes to perform the simple actions of the centralscruitinzer bot
 # An action is different from a job in that an action DOES NOT require loading of data from Reddit
 
-import globaldata as g
 import logging
 
 import praw.errors
+import requests
 
 
 def make_post_text(sub, title, message, callback=None, distinguish=False):
@@ -110,7 +110,6 @@ def get_comments(post, callback):
         logging.error(str(e))
         logging.warning("Comments not retrieved successfully")
 
-
 def remove_comment(comment, callback=None, mark_spam=False):
     try:
         comment.remove(spam=mark_spam)
@@ -120,3 +119,30 @@ def remove_comment(comment, callback=None, mark_spam=False):
     except Exception, e:
         logging.error(str(e))
         logging.warning("Comment" + str(comment) + " not removed successfully")
+
+def write_wiki_page(wiki, content, reason=''):
+    """Writes to a wiki page, returns true if written successfully"""
+    try:
+        wiki.edit(content=content, reason=reason)
+        return True
+    except Exception, e:
+        logging.critical("Error writing wiki page.")
+    return False
+
+def get_wiki_content(wiki):
+    """Reads from a wiki page, returns content if read successfully"""
+    try:
+        return wiki.content_md
+    except Exception, e:
+        logging.warning("Could not retrieve wiki page content")
+        return None
+
+def get_or_create_wiki(reddit, sub, page):
+    """Returns the specified wiki page, it will be created if not already extant"""
+    try:
+        wiki = reddit.get_wiki_page(sub, page)
+    except requests.exceptions.HTTPError, e:
+        logging.warning("Wiki page " + page + " not created for subreddit, creating...")
+        reddit.edit_wiki_page(sub, page, content="", reason="initial commit")
+        wiki = reddit.get_wiki_page(sub, page)
+    return wiki
