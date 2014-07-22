@@ -139,42 +139,79 @@ def test_write_wiki(wiki):
 
 def test_get_wiki(wiki):
     read_test = a.get_wiki_content(wiki)
-    print "Wiki write: " + str(read_test == "test")
+    print "Wiki read: " + str(read_test == "test")
     return read_test == "test"
 
 def test_black_list(credentials):
     y = DataExtractors.YoutubeExtractor(credentials['GOOGLEID'])
-    ids = ["https://www.youtube.com/watch?v=-vihDAj5VkY", "https://www.youtube.com/watch?v=AkzOLOih0HA"]
+    ids = ["https://www.youtube.com/watch?v=-vihDAj5VkY", "http://youtu.be/Cg9PWSHL4Vg",
+           "https://www.youtube.com/watch?v=WkqziN8F8oM"]
     blist = Blacklist.Blacklist(credentials, y)
     if not blist:
-        print "Blacklist creation: False"
+        print "Blacklist creation: Failed"
         return False
-    print "Blacklist creation: True"
+    print "Blacklist creation: Passed"
+
+    #make sure the blacklist is empty from any previously failed tests
+    if blist.get_blacklisted_channels(""):
+        blist.remove_blacklist(blist.get_blacklisted_channels(""))
+
+    if blist.get_whitelisted_channels(""):
+        blist.remove_blacklist(blist.get_whitelisted_channels(""))
 
     #test adding to blacklist
-    blist.add_blacklist(ids[0])
-    check = blist.check_blacklist(ids[1])
+    check = blist.add_blacklist(ids[0:2])
+    check = check and all(blist.check_blacklist(val) for val in ids[0:2])
+    check = check and not blist.check_blacklist(ids[2])
     if not check:
-        print "Blacklist addition: False"
-    print "Blacklist addition: True"
+        print "Blacklist addition: Failed"
+        return False
+    print "Blacklist addition: Passed"
 
     #test channels
     channels = blist.get_blacklisted_channels("arghdos")
     if len(channels) > 0 and channels[0] == "arghdos":
-        print "Blacklist channel get: True"
+        print "Blacklist channel get: Passed"
     else:
-        print "Blacklist channel get: False"
+        print "Blacklist channel get: Failed"
         return False
 
     #test blacklist removal
     blist.remove_blacklist_url(ids[0])
     check = blist.check_blacklist(ids[0])
     if check:
-        print "Blacklist removal: False"
+        print "Blacklist removal: Failed"
         return False
-    print "Blacklist removal: True"
+    print "Blacklist removal: Passed"
+
+    #now test blacklist loading
+    blist2 = Blacklist.Blacklist(credentials, y)
+    if not blist2.check_blacklist(ids[1]):
+        print "Blacklist load: Failed"
+        return False
+    print "Blacklist load: Passed"
+    blist.remove_blacklist_url(ids[1])
     return True
 
+def test_send_message(reddit, credentials):
+    if a.send_message(reddit, credentials['ALTUSER'], "test", "testmessage"):
+        print "Test Message Send: Passed"
+        return True
+    else:
+        print "Test Message Send: Failed"
+        return False
+
+def test_get_message(credentials):
+    r = praw.Reddit(user_agent=credentials['USERAGENT'])
+    r.login(username=credentials['ALTUSER'], password=credentials['ALTPASS'])
+    messages = a.get_unread(r)
+    message = messages.next()
+    success = message.author.name == 'centralscruuutinizer' and message.body == "testmessage" and message.subject == "test"
+    if success:
+        print "Test Get Message: Passed"
+        return True
+    print "Test Get Message: Failed"
+    return True
 
 
 def main():
@@ -193,6 +230,9 @@ def main():
     r = u.create_praw(credentials)
 
     sub = r.get_subreddit(credentials['SUBREDDIT'])
+
+    test_send_message(r, credentials)
+    test_get_message(credentials)
 
     wiki = test_create_wiki(r, sub, "test")
     test_write_wiki(wiki)
