@@ -26,10 +26,12 @@ class Blacklist(object):
         self.domains = self.data.domains
         self.list = {}
         self.locker = Lock()
-        self.BLACKLIST = "B"
-        self.WHITELIST = "W"
+        self.BLACKLIST = True
+        self.WHITELIST = False
         #load praw
         self.reddit = utilitymethods.create_multiprocess_praw(credentials)
+        if self.reddit == None:
+            raise Exception("Could not create praw object, check log")
         sub = utilitymethods.get_subreddit(credentials, self.reddit)
         self.wiki = Actions.get_or_create_wiki(self.reddit, sub, self.name + "_blacklist")
         #load list
@@ -47,7 +49,7 @@ class Blacklist(object):
         if content:
             for entry in content.split('  \n'):
                 (key, value) = entry.split('=')
-                self.list[key] = value
+                self.list[key] = bool(value)
         self.locker.release()
 
     def check_blacklist(self, url):
@@ -59,7 +61,7 @@ class Blacklist(object):
         if self.__check_domain(url):
             channel = self.data.channel_id(url)
             self.locker.acquire()
-            if len([c for c in self.list if channel == c]):
+            if len([c for c in self.list if channel == c and self.list[c]]):
                 retval = True
             self.locker.release()
         return retval
@@ -113,7 +115,7 @@ class Blacklist(object):
         self.locker.release()
         #write to wikipage
         rstring = self.__serialize_list()
-        Actions.write_wiki_page(self.wiki, rstring, reason="Adding channels " + ', '.join(my_ids) + " to the " + ("Blacklist" if value == self.BLACKLIST else "Whitelist"))
+        return Actions.write_wiki_page(self.wiki, rstring, reason="Adding channels " + ', '.join(my_ids) + " to the " + ("Blacklist" if value == self.BLACKLIST else "Whitelist"))
 
     def remove_blacklist_url(self, urls):
         """Removes channels from blacklist by URL"""
