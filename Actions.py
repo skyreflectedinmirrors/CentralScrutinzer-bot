@@ -146,3 +146,27 @@ def get_or_create_wiki(reddit, sub, page):
         reddit.edit_wiki_page(sub, page, content="", reason="initial commit")
         wiki = reddit.get_wiki_page(sub, page)
     return wiki
+
+from praw import AuthenticatedReddit
+def get_unread(reddit, limit=10):
+    """Returns a list of messages
+        :type reddit AuthenticatedReddit
+    """
+    comments = None
+    try:
+        comments = reddit.get_unread(limit = limit)
+    except requests.exceptions.HTTPError, e:
+        logging.error("Unread mail for user could not be retrieved")
+    return comments
+
+def send_message(reddit, user, subject, message):
+    """sends a message to user 'user' with subject and message
+        :type reddit AuthenticatedReddit
+        :return True if sent correctly, false otherwise
+    """
+    try:
+        reddit.send_message(user, subject, message)
+    except requests.exceptions.HTTPError, e:
+        logging.error("Message " + subject + " could not be sent to user " + user)
+        return False
+    return True
