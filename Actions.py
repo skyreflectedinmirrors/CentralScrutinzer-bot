@@ -1,5 +1,6 @@
-# Actions.py - contains classes to perform the simple actions of the centralscruitinzer bot
-# An action is different from a job in that an action DOES NOT require loading of data from Reddit
+"""Actions.py - contains methods to perform the simple actions of the centralscruitinzer bot
+They are placed here so that they can be properly error checked from any calling location
+"""
 
 import logging
 
@@ -170,3 +171,39 @@ def send_message(reddit, user, subject, message):
         logging.error("Message " + subject + " could not be sent to user " + user)
         return False
     return True
+
+import urlparse
+import httplib
+def resolve_url(url):
+    """Resolves a url for caching and storing purposes
+    :return: the resolved url, or None if an exception occurs
+    """
+
+    #determine scheme and netloc
+    parsed = urlparse.urlparse(url)
+    if parsed.scheme == httplib.HTTP:
+        h = httplib.HTTPConnection(parsed.netloc)
+    elif parsed.scheme == httplib.HTTPS:
+        h = httplib.HTTPSConnection(parsed.netloc)
+    else:
+        logging.warning("Could not determine net scheme for url " + url)
+        return None
+
+    #add query
+    resource = parsed.path
+    if parsed.query != "":
+        resource += "?" + parsed.query
+
+    #ask server
+    try:
+        h.request('HEAD', resource)
+        response = h.getresponse()
+    except httplib.error, e:
+        logging.error("Error on resolving url " + url + "\n" + str(e))
+        return None
+
+    #check for redirection
+    if response.status/100 == 3 and response.getheader('Location'):
+        return resolve_url(response.getheader('Location')) # changed to process chains of short urls
+    else:
+        return url
