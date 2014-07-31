@@ -1,6 +1,6 @@
 # Test-Suite.py
 
-#I'm a man who (now) believes in unit test driven development, so this is where the unit tests live!
+# I'm a man who (now) believes in unit test driven development, so this is where the unit tests live!
 
 import praw
 import praw.errors as perr
@@ -12,16 +12,20 @@ import globaldata as g
 import utilitymethods as u
 import DataExtractors
 import Blacklist
+import DataBase
+
 
 def store_post(post):
     global my_post
     my_post = post
-    print "my_post = "  + my_post.title
+    print "my_post = " + my_post.title
+
 
 def store_comment(comment):
     global my_comment
     my_comment = comment
-    print "my_comment = "  + my_comment.id
+    print "my_comment = " + my_comment.id
+
 
 def print_posts(posts):
     try:
@@ -30,6 +34,7 @@ def print_posts(posts):
     except:
         pass
 
+
 def print_comments(comments):
     try:
         for comment in comments:
@@ -37,20 +42,25 @@ def print_comments(comments):
     except:
         pass
 
+
 def testMultiprocess(credentials):
     #create my reddit
     return u.create_multiprocess_praw(credentials)
+
 
 def testRemoveComment(comment):
     #spawn an action
     a.remove_comment(comment)
 
+
 def testGetComments(post):
     a.get_comments(post, print_comments)
+
 
 def testMakeComment(post):
     #spawn an action
     a.make_comment(post, "test comment", store_comment)
+
 
 def testGetPosts(sub):
     #spawn an action
@@ -76,6 +86,7 @@ def testUnBanUser(sub, user):
     #spawn a Removal action
     a.unban_user(sub, user)
 
+
 def testYoutubeExtractor(credentials):
     y = DataExtractors.YoutubeExtractor(credentials['GOOGLEID'])
     id_to_response = {
@@ -93,6 +104,7 @@ def testYoutubeExtractor(credentials):
 
     return True
 
+
 def testSoundcloudExtractor(credentials):
     y = DataExtractors.SoundCloudExtractor(credentials['SOUNDCLOUDID'])
 
@@ -108,6 +120,7 @@ def testSoundcloudExtractor(credentials):
         if y.channel_id(id) != response:
             return False
     return True
+
 
 def testBandcampExtractor(credentials):
     y = DataExtractors.BandCampExtractor()
@@ -127,20 +140,24 @@ def testBandcampExtractor(credentials):
             return False
     return True
 
+
 def test_create_wiki(reddit, sub, page):
     wiki = a.get_or_create_wiki(reddit, sub, page)
     print "Wiki get/create: " + str(wiki != None)
     return wiki
+
 
 def test_write_wiki(wiki):
     write_test = a.write_wiki_page(wiki, "test")
     print "Wiki write: " + str(write_test)
     return write_test
 
+
 def test_get_wiki(wiki):
     read_test = a.get_wiki_content(wiki)
     print "Wiki read: " + str(read_test == "test")
     return read_test == "test"
+
 
 def test_black_list(credentials):
     y = DataExtractors.YoutubeExtractor(credentials['GOOGLEID'])
@@ -184,6 +201,22 @@ def test_black_list(credentials):
         return False
     print "Blacklist removal: Passed"
 
+    #test whitelist
+    blist.add_whitelist(ids[0])
+    check = blist.check_blacklist(ids[0])
+    if check:
+        print "Whitelist addition: Failed"
+        return False
+    print "Whitelist addition: Passed"
+
+    #test whitelist removal / basic behaviour
+    blist.remove_whitelist_url(ids[0])
+    check = blist.check_blacklist(ids[0])
+    if check:
+        print "Whitelist removal: Failed"
+        return False
+    print "Whitelist removal: Passed"
+
     #now test blacklist loading
     blist2 = Blacklist.Blacklist(credentials, y)
     if not blist2.check_blacklist(ids[1]):
@@ -193,6 +226,7 @@ def test_black_list(credentials):
     blist.remove_blacklist_url(ids[1])
     return True
 
+
 def test_send_message(reddit, credentials):
     if a.send_message(reddit, credentials['ALTUSER'], "test", "testmessage"):
         print "Test Message Send: Passed"
@@ -200,6 +234,7 @@ def test_send_message(reddit, credentials):
     else:
         print "Test Message Send: Failed"
         return False
+
 
 def test_get_message(credentials):
     r = praw.Reddit(user_agent=credentials['USERAGENT'])
@@ -214,25 +249,78 @@ def test_get_message(credentials):
     return True
 
 
+import os
+def data_base_tests():
+    """
+    :type db: Database.Database
+    :return:
+    """
+    try:
+        os.remove("test_database.db")
+    except:
+        pass
+    try:
+        with DataBase.DataBaseWrapper("test_database.db", False) as db:
+            print "Database Creation:"
+            if not db._DataBase__create_table():
+                return False
+            print "Passed"
+
+            print "Database Channel Add:"
+            #channel_id, channel_url, blacklist, three_strikes
+            channels = [('arghdos', 'youtube.com', 'https://www.youtube.com/user/arghdos', '0', '0'),
+                ("wayneszalinski.bandcamp.com", 'bandcamp.com', "wayneszalinski.bandcamp.com", '0', '1'),
+                ("https://soundcloud.com/matt-spencer-37", 'soundcloud.com', "Morty Spin", '1', '0')]
+            db.add_channels(channels)
+            print "Passed"
+
+            print "Database Channel Check:"
+            result = db.channel_exists([('arghdos', 'youtube.com'), ("wayneszalinski.bandcamp.com", 'bandcamp.com'),
+                                        ('dummy', 'dummy.com')])
+            if result != [True, True, False]:
+                print "Failed"
+                return False
+            print "Passed"
+
+            print "Database Channel Get:"
+            result = db.get_channels(domain='youtube.com', blacklist=0)
+            if len(result) != 1 or result[0][0] != 'arghdos' or result[0][1] != 'https://www.youtube.com/user/arghdos':
+                print "Failed"
+                return False
+            result = db.get_channels(domain='youtube.com', blacklist=0, id_filter='test')
+            if len(result):
+                print "Failed"
+                return False
+            result = db.get_channels(blacklist=0, strike_count=1)
+            if len(result) != 1 and result[0][0] != "wayneszalinski.bandcamp.com":
+                print "Failed"
+                return False
+
+            print "Passed"
+
+    except Exception, e:
+        print "Failed"
+        return False
+
+
 def main():
     g.init()
     g.close()
     #import credentials
     credentials = CRImport("TestCredentials.cred")
 
-    testBandcampExtractor(credentials)
-
-    testSoundcloudExtractor(credentials)
-
-    testYoutubeExtractor(credentials)
+    data_base_tests()
 
     #create my reddit
     r = u.create_praw(credentials)
 
     sub = r.get_subreddit(credentials['SUBREDDIT'])
 
-    test_send_message(r, credentials)
-    test_get_message(credentials)
+    testBandcampExtractor(credentials)
+
+    testSoundcloudExtractor(credentials)
+
+    testYoutubeExtractor(credentials)
 
     wiki = test_create_wiki(r, sub, "test")
     test_write_wiki(wiki)
@@ -267,8 +355,17 @@ def main():
     #run multiproc handler test
     r = testMultiprocess(credentials)
 
+    #run message tests
+    test_send_message(r, credentials)
+    test_get_message(credentials)
+
+    #run database tests
+    data_base_tests()
+
     import logging
+
     logging.info("Tests complete")
+
 
 if (__name__ == "__main__"):
     main()
