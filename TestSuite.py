@@ -283,7 +283,7 @@ def data_base_tests():
 
             print "Database Channel Get:"
             result = db.get_channels(domain='youtube.com', blacklist=0)
-            if len(result) != 1 or result[0][0] != 'arghdos' or result[0][1] != 'https://www.youtube.com/user/arghdos':
+            if len(result) != 1 or result[0][0] != 'arghdos' or result[0][1] != 'youtube.com':
                 print "Failed"
                 return False
             result = db.get_channels(domain='youtube.com', blacklist=0, id_filter='test')
@@ -294,8 +294,55 @@ def data_base_tests():
             if len(result) != 1 and result[0][0] != "wayneszalinski.bandcamp.com":
                 print "Failed"
                 return False
-
             print "Passed"
+
+            print "Database Channel Blacklist Set:"
+            db.set_blacklist([('arghdos', 'youtube.com', 1)])
+            result = db.get_channels(blacklist=1, domain='youtube.com', id_filter='arghdos')
+            if not len(result):
+                print "Failed"
+                return False
+            print "Passed"
+
+            print "Database Set Strikes:"
+            db.set_strikes([('arghdos', 'youtube.com', 2)])
+            result = db.get_channels(strike_count=2, id_filter='arghdos')
+            if len(result) == 0:
+                print "Failed"
+                return False
+
+            print "Add Reddit:"
+            #short_url, channel_id, domain, date_added
+            reddit_entries = [('dsadas', 'arghdos', 'youtube.com', datetime.datetime.now()),
+                              ('sdafasf', 'arghdos', 'youtube.com', datetime.datetime.now() - datetime.timedelta(days=5))]
+            db.add_reddit(reddit_entries)
+            print "Passed"
+
+            print "Reddit Check:"
+            result = db.get_reddit('arghdos', 'youtube.com')
+            if [r[0] for r in result] != ['dsadas', 'sdafasf']:
+                print "Failed"
+                return False
+            print "Passed"
+
+            print "Remove Older Than:"
+            db.remove_reddit_older_than(1)
+            result = db.get_reddit('arghdos', 'youtube.com')
+            if len([r for r in result if r[0] == "sdafasf"]):
+                print "Failed"
+                #return False
+            print "Passed"
+
+            print "Remove Reddit:"
+            db.remove_reddit(["dsadas"])
+            result = db.get_reddit('arghdos', 'youtube.com')
+            if len([r for r in result if r[0] == "dsadas"]):
+                print "Failed"
+                return False
+            print "Passed"
+
+            print "Database Tests Complete"
+            return True
 
     except Exception, e:
         print "Failed"
