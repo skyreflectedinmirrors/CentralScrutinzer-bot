@@ -3,16 +3,14 @@
 # I'm a man who (now) believes in unit test driven development, so this is where the unit tests live!
 
 import praw
-import praw.errors as perr
-import praw.handlers as phand
 from CredentialsImport import CRImport
-import DataBase
 import Actions as a
 import globaldata as g
 import utilitymethods as u
 import DataExtractors
 import Blacklist
 import DataBase
+import datetime
 
 
 def store_post(post):
@@ -90,16 +88,16 @@ def testUnBanUser(sub, user):
 def testYoutubeExtractor(credentials):
     y = DataExtractors.YoutubeExtractor(credentials['GOOGLEID'])
     id_to_response = {
-        "https://www.youtube.com/watch?v=-vihDAj5VkY": "arghdos",
-        "https://m.youtube.com/watch?v=G4ApQrbhQp8": "IGN",
-        "http://youtu.be/Cg9PWSHL4Vg": "Karen Jones",
+        "https://www.youtube.com/watch?v=-vihDAj5VkY": ("arghdos", "http://www.youtube.com/user/arghdos"),
+        "https://m.youtube.com/watch?v=G4ApQrbhQp8": ("IGN", "http://www.youtube.com/user/IGN"),
+        "http://youtu.be/Cg9PWSHL4Vg": ("Karen Jones", "http://www.youtube.com/user/Karen Jones"),
         "https://www.youtube.com/watch?v=iMoNJ_UiRQY": "PRIVATE",
-        "https://www.youtube.com/watch?v=WkqziN8F8oM": "BBrucker2"
+        "https://www.youtube.com/watch?v=WkqziN8F8oM": ("BBrucker2", "http://www.youtube.com/user/BBrucker2")
     }
 
     for id, response in id_to_response.iteritems():
-        print id, response
         if y.channel_id(id) != response:
+            print "Failed on ", id, response
             return False
 
     return True
@@ -109,16 +107,17 @@ def testSoundcloudExtractor(credentials):
     y = DataExtractors.SoundCloudExtractor(credentials['SOUNDCLOUDID'])
 
     id_to_response = {
-        "https://soundcloud.com/matt-spencer-37": "Morty Spin",
-        "https://soundcloud.com/maggiesmithmusic/100-needles-for-zil": "MaggieSmithMusic",
-        "https://soundcloud.com/natebelasco/kanye-west-black-skinhead-vs": "Nate Belasco",
-        "https://soundcloud.com/NOTAREALURL": None
+        "http://soundcloud.com/matt-spencer-37": ("Morty Spin", "http://soundcloud.com/matt-spencer-37"),
+        "http://soundcloud.com/maggiesmithmusic/100-needles-for-zil": ("MaggieSmithMusic", "http://soundcloud.com/maggiesmithmusic"),
+        "http://soundcloud.com/natebelasco/kanye-west-black-skinhead-vs": ("Nate Belasco", "http://soundcloud.com/natebelasco"),
+        "http://soundcloud.com/NOTAREALURL": None
     }
 
     for id, response in id_to_response.iteritems():
-        print id, response
         if y.channel_id(id) != response:
+            print "Failed on: ", id, response
             return False
+
     return True
 
 
@@ -126,17 +125,17 @@ def testBandcampExtractor(credentials):
     y = DataExtractors.BandCampExtractor()
 
     id_to_response = {
-        "http://wayneszalinski.bandcamp.com/": "wayneszalinski.bandcamp.com",
-        "http://www.sleepwalkersbandcamp.bandcamp.com/": "sleepwalkersbandcamp.bandcamp.com",
-        "http://rivka.bandcamp.com/track/better-days": "rivka.bandcamp.com",
-        "jghkgkjgjhjhg.com": "jghkgkjgjhjhg.com",
-        "jghkgkjgjhjhg": "jghkgkjgjhjhg",
-        "http://rivka.bandcamp.com/track/better-days/https://www.youtube.com/watch?v=RVLwCLGz5hM": "rivka.bandcamp.com"
+        "http://wayneszalinski.bandcamp.com/": ("wayneszalinski.bandcamp.com", "http://wayneszalinski.bandcamp.com"),
+        "http://www.sleepwalkersbandcamp.bandcamp.com/": ("sleepwalkersbandcamp.bandcamp.com", "http://www.sleepwalkersbandcamp.bandcamp.com"),
+        "http://rivka.bandcamp.com/track/better-days": ("rivka.bandcamp.com", "http://rivka.bandcamp.com"),
+        "jghkgkjgjhjhg.com": ("jghkgkjgjhjhg.com", "jghkgkjgjhjhg.com"),
+        "jghkgkjgjhjhg": ("jghkgkjgjhjhg", "jghkgkjgjhjhg"),
+        "http://rivka.bandcamp.com/track/better-days/https://www.youtube.com/watch?v=RVLwCLGz5hM": ("rivka.bandcamp.com", "http://rivka.bandcamp.com")
     }
 
     for id, response in id_to_response.iteritems():
-        print id, response
         if y.channel_id(id) != response:
+            print "Failed on ", id, response
             return False
     return True
 
@@ -359,13 +358,11 @@ def main():
     test_send_message(r, credentials)
     test_get_message(credentials)
 
-    #run database tests
-    data_base_tests()
 
     import logging
 
     logging.info("Tests complete")
 
 
-if (__name__ == "__main__"):
+if __name__ == "__main__":
     main()
