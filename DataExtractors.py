@@ -18,10 +18,9 @@ class IdentificationExtractor(object):
         """returns the channel id from the url
 
         :param url: the url to check
-        :return: the channel id, else None if an error occurs
+        :return: the (channel_id, channel_url), else None if an error occurs
         """
         raise NotImplementedError
-
 
 
 class SoundCloudExtractor(IdentificationExtractor):
@@ -29,7 +28,6 @@ class SoundCloudExtractor(IdentificationExtractor):
         super(SoundCloudExtractor, self).__init__("soundcloud", ["soundcloud.com"])
         self.soundcloud = soundcloud.Client(client_id=key)
 
-    #returns the channel id from a url
     def channel_id(self, url):
         """the soundcloud username
 
@@ -47,15 +45,17 @@ class SoundCloudExtractor(IdentificationExtractor):
             return None
 
         try:
-            return response.username
+            return (response.username, response.permalink_url)
         except AttributeError:
             try:
-                return response.user['username']
+                return (response.user['username'], response.user['permalink_url'])
             except AttributeError:
                 logging.info("Deleted or private soundcloud user requested: {}".format(url))
                 return "PRIVATE"
         except Exception, e:
-            logging.error(str(e))
+            logging.error("Could not find soundcloud username or permalink for url: {}".format(url))
+            logging.debug(str(e))
+
 
 class YoutubeExtractor(IdentificationExtractor):
     def __init__(self, key):
@@ -70,7 +70,11 @@ class YoutubeExtractor(IdentificationExtractor):
 
     #returns the channel id from a url
     def channel_id(self, url):
-        #first get video id
+        """returns the (channel_id, channel_url) from a youtube url
+
+        :param url: the url in question
+        :return: (channel_id, channel_url) or None if an error occured
+        """
         id = self.__get_video_id(url)
         if not id:
             return None
@@ -112,7 +116,7 @@ class YoutubeExtractor(IdentificationExtractor):
             return "PRIVATE"
         except Exception, e:
             logging.error()
-        return response
+        return (response, "http://www.youtube.com/user/{}".format(response))
 
 
     def __get_video_id(self, url):
@@ -140,4 +144,11 @@ class BandCampExtractor(IdentificationExtractor):
         "http://www.sleepwalkersbandcamp.bandcamp.com/" -> "sleepwalkersbandcamp.bandcamp.com"
         :returns: the id, or None if an error is encountered
         """
-        return domain_extractor(url)
+        domain = domain_extractor(url)
+        if not domain:
+            return domain
+        try:
+            return (domain, url[:url.index(domain)] + domain)
+        except:
+            logging.error("Bad domain extracted from {}".format(url))
+            return None
