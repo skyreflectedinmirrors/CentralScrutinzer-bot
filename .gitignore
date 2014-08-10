@@ -6,7 +6,7 @@ error.log
 test.py
 
 #database file
-*.db 
+*.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
