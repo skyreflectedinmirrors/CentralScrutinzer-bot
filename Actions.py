@@ -81,30 +81,32 @@ def get_posts(sub, limit=20):
 def make_comment(post, text):
     try:
         comment = post.add_comment(text)
-        return True
+        return comment
     except Exception, e:
         logging.error("Comment " + text + " was not made successfully!")
         logging.debug(str(e))
-
+    return None
 
 import praw.helpers as helper
 
 
-def get_comments(post, callback):
+def get_comments(post):
     try:
         comments = helper.flatten_tree(post.comments)
         return comments
     except Exception, e:
         logging.error("Comments not retrieved successfully")
         logging.debug(str(e))
+    return None
 
-def remove_comment(comment, callback=None, mark_spam=False):
+def remove_comment(comment, mark_spam=False):
     try:
         comment.remove(spam=mark_spam)
         return True
     except Exception, e:
         logging.error("Comment not removed successfully")
         logging.debug(str(e))
+    return False
 
 def write_wiki_page(wiki, content, reason=''):
     """Writes to a wiki page, returns true if written successfully"""

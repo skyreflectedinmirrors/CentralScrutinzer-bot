@@ -12,35 +12,6 @@ import Blacklist
 import DataBase
 import datetime
 
-
-def store_post(post):
-    global my_post
-    my_post = post
-    print "my_post = " + my_post.title
-
-
-def store_comment(comment):
-    global my_comment
-    my_comment = comment
-    print "my_comment = " + my_comment.id
-
-
-def print_posts(posts):
-    try:
-        for posts in posts:
-            print posts.title
-    except:
-        pass
-
-
-def print_comments(comments):
-    try:
-        for comment in comments:
-            print comment.text
-    except:
-        pass
-
-
 def testMultiprocess(credentials):
     #create my reddit
     return u.create_multiprocess_praw(credentials)
@@ -48,41 +19,64 @@ def testMultiprocess(credentials):
 
 def testRemoveComment(comment):
     #spawn an action
-    a.remove_comment(comment)
+    print "Remove Comment:"
+    val = a.remove_comment(comment)
+    print "Passed" if val else "Failed"
+    return val
 
-
-def testGetComments(post):
-    a.get_comments(post, print_comments)
+def testGetComments(sub):
+    print "Get Comments:"
+    post = a.get_posts(sub, 1)
+    comments = a.get_comments(post.next())
+    print "Passed" if comments != None and len(comments) and comments[0].body == "test comment" else "Failed"
+    return comments != None
 
 
 def testMakeComment(post):
     #spawn an action
-    a.make_comment(post, "test comment", store_comment)
-
+    print "Make Comment:"
+    comment = a.make_comment(post, "test comment")
+    print "Passed" if comment else "Failed"
+    return comment
 
 def testGetPosts(sub):
     #spawn an action
-    a.get_posts(sub, print_posts)
+    print "Get Posts:"
+    posts = a.get_posts(sub)
+    print "Passed" if posts else "Failed"
+    return posts != None
 
 
 def testMakePostText(sub):
     #spawn a  action
-    a.make_post_text(sub, "testpost", "please ignore", store_post)
+    print "Make Post:"
+    post = a.make_post_text(sub, "testpost", "please ignore")
+    print "Passed" if post else "Failed"
+    return post
 
 
-def testRemovePost(sub, post=None):
+def testRemovePost(sub, post):
     #spawn a Removal action
-    a.remove_post(post)
+    print "Remove Post:"
+    val = a.remove_post(post)
+    print "Passed" if val else "Failed"
+    return val
 
 
 def testBanUser(sub, user):
     #spawn a Removal action
-    a.ban_user(sub, "test", user)
+    print "Ban user:"
+    val = a.ban_user(sub, "test", user)
+    print "Passed" if val else "Failed"
+    return val
 
 
 def testUnBanUser(sub, user):
     #spawn a Removal action
-    a.unban_user(sub, user)
+    print "Unban user: "
+    val = a.unban_user(sub, user)
+    print "Passed" if val else "Failed"
+    return val
 
 
 def testYoutubeExtractor(credentials):
@@ -381,14 +375,10 @@ def main():
 
     testYoutubeExtractor(credentials)
 
-    wiki = test_create_wiki(r, sub, "test")
-    test_write_wiki(wiki)
-    test_get_wiki(wiki)
-
     test_black_list(credentials)
 
     #run MakePost test
-    testMakePostText(sub)
+    post = testMakePostText(sub)
 
     #run RemovePost test
     testBanUser(sub, "StudabakerHoch")
@@ -400,16 +390,16 @@ def main():
     testGetPosts(sub)
 
     #run make comment test
-    testMakeComment(my_post)
+    comment = testMakeComment(post)
 
     #run get comments post
-    testGetComments(my_post)
+    testGetComments(sub)
 
     #run make comment test
-    testRemoveComment(my_comment)
+    testRemoveComment(comment)
 
     #run RemovePost test
-    testRemovePost(sub, my_post)
+    testRemovePost(sub, post)
 
     #run multiproc handler test
     r = testMultiprocess(credentials)
@@ -418,10 +408,10 @@ def main():
     test_send_message(r, credentials)
     test_get_message(credentials)
 
-
-    import logging
-
-    logging.info("Tests complete")
+    #run wiki tests
+    wiki = test_create_wiki(r, sub, "test")
+    test_write_wiki(wiki)
+    test_get_wiki(wiki)
 
 
 if __name__ == "__main__":
