@@ -4,66 +4,58 @@
 import logging
 
 from threading import Lock
-from urlparse import urlsplit
 import re
 import utilitymethods
 from praw.objects import WikiPage
-import logging
 import Actions
+import DataBase
 
 from DataExtractors import IdentificationExtractor
+
+class BlacklistEnums:
+    NotFound, Blacklisted, Whitelisted = range(3)
 
 class Blacklist(object):
     """ Also a whitelist, but who's counting
     @type data IdentificationExtractor
     @type wiki WikiPage
     """
-    def __init__(self, credentials, data_extractor):
+    def __init__(self, data_extractor, database_file):
         assert(isinstance(data_extractor, IdentificationExtractor))
         #set data
         self.name = data_extractor.name
         self.data = data_extractor
         self.domains = self.data.domains
-        self.list = {}
         self.locker = Lock()
-        self.BLACKLIST = True
-        self.WHITELIST = False
-        #load praw
-        self.reddit = utilitymethods.create_multiprocess_praw(credentials)
-        if self.reddit == None:
-            raise Exception("Could not create praw object, check log")
-        sub = utilitymethods.get_subreddit(credentials, self.reddit)
-        self.wiki = Actions.get_or_create_wiki(self.reddit, sub, self.name + "_blacklist")
-        #load list
-        self.__unserialze_list()
+        self.blacklist = set()
+        self.whitelist = set()
+        self.file = database_file
 
-    def __serialize_list(self):
-        self.locker.acquire()
-        retstring = '  \n'.join("%s=%r" % (key,val) for (key,val) in self.list.iteritems())
-        self.locker.release()
-        return retstring
+        #load black and whitelist
+        with DataBase.DataBaseWrapper(self.file) as db:
+            blist = db.get_channels(blacklist=BlacklistEnums.Blacklisted, domain=self.domains[0])
+            for item in blist:
+                self.blacklist.add(item[0])
+            blist = db.get_channels(blacklist=BlacklistEnums.Whitelisted, domain=self.domains[0])
+            for item in blist:
+                self.whitelist.add(item[0])
 
-    def __unserialze_list(self):
-        self.locker.acquire()
-        content = self.wiki.content_md
-        if content:
-            for entry in content.split('  \n'):
-                (key, value) = entry.split('=')
-                self.list[key] = bool(value)
-        self.locker.release()
 
     def check_blacklist(self, url):
         """ This method tells you whether a submission is on a blacklisted channel.
         :param url: the url to check
-        :return: True if the url's channel is in this blacklist, false if not this domain, or not blacklisted
+        :return: the appropriate blacklist enum
         """
-        retval = False
+        retval = BlacklistEnums.NotFound
         if self.__check_domain(url):
             channel = self.data.channel_id(url)
-            self.locker.acquire()
-            if len([c for c in self.list if channel == c and self.list[c]]):
-                retval = True
-            self.locker.release()
+            if channel and not channel == "PRIVATE":
+                self.locker.acquire()
+                if channel[0] in self.blacklist:
+                    retval = BlacklistEnums.Blacklisted
+                elif channel[0] in self.whitelist:
+                    retval = BlacklistEnums.Whitelisted
+                self.locker.release()
         return retval
 
     def __check_domain(self, url):
@@ -78,24 +70,24 @@ class Blacklist(object):
     def add_blacklist(self, urls):
         """ adds a channel to the blacklist
         :param url: a url of link corresponding to the channel
-        :return: True if successfully added, false otherwise
         """
         if not isinstance(urls, list):
             urls = [urls]
-        for url in urls:
-            logging.info("Adding channel from url " + url + " to blacklist:" + self.name)
-        return self.__add_channels(urls, self.BLACKLIST)
+        return self.__add_channels(urls, BlacklistEnums.Blacklisted)
 
     def add_whitelist(self, urls):
         """ adds a channel to the whitelist
         :param url: a url of link corresponding to the channel
-        :return: True if successfully added, false otherwise
         """
         if not isinstance(urls, list):
             urls = [urls]
-        for url in urls:
-            logging.info("Adding channel from url " + url + " to whitelist: " + self.name)
-        return self.__add_channels(urls, self.WHITELIST)
+        return self.__add_channels(urls, BlacklistEnums.Whitelisted)
+
+    def __split_on_condition(self, seq, condition):
+        a, b = [], []
+        for item in seq:
+            (a if condition(item) else b).append(item)
+        return a,b
 
     def __add_channels(self, urls, value):
         """Adds a channel to the list
@@ -105,68 +97,129 @@ class Blacklist(object):
         :return: True if successfully added, false otherwise
         """
         #check that the domain is being added
-        my_urls = [url for url in urls if self.__check_domain(url)]
+        my_urls,invalid_urls = self.__split_on_condition(urls, self.__check_domain)
         #get ids
-        my_ids = [self.data.channel_id(url) for url in my_urls]
-        self.locker.acquire()
-        #add to list
-        for id in my_ids:
-            self.list[id] = value
-        self.locker.release()
-        #write to wikipage
-        rstring = self.__serialize_list()
-        return Actions.write_wiki_page(self.wiki, rstring, reason="Adding channels " + ', '.join(my_ids) + " to the " + ("Blacklist" if value == self.BLACKLIST else "Whitelist"))
+        ids = [self.data.channel_id(url) for url in my_urls]
+        valid_ids, invalid_ids = self.__split_on_condition(ids, lambda x: x and x != "PRIVATE")
+        #transform
+        entries = [(id[0], self.domains[0]) for id in valid_ids]
+        with DataBase.DataBaseWrapper(self.file, False) as db:
+            #first find list of channels that exist already
+            existant_channels = db.channel_exists(entries)
+            if not existant_channels:
+                return invalid_urls + invalid_ids + valid_ids
+            #split and populate our tuple lists based on this
+            update_list = []
+            add_list = []
+            for i, channel_exists in enumerate(existant_channels):
+                if channel_exists:
+                    update_list.append((entries[i]) + (value,))
+                else:
+                    add_list.append(entries[i] + (valid_ids[i][1], value, 0))
+
+            #add and update channels
+            if len(update_list):
+                db.set_blacklist(update_list)
+            if len(add_list):
+                db.add_channels(add_list)
+        #finally add to the appropriate shortlist
+        the_list = None
+        if value == BlacklistEnums.Blacklisted:
+            the_list = self.blacklist
+        elif value == BlacklistEnums.Whitelisted:
+            the_list = self.whitelist
+        if the_list != None and len(valid_ids):
+            self.locker.acquire()
+            for id in valid_ids:
+                the_list.add(id[0])
+            self.locker.release()
+        return invalid_urls + invalid_ids
+
 
     def remove_blacklist_url(self, urls):
-        """Removes channels from blacklist by URL"""
-        self.__remove_channels_url(urls)
+        """Removes channels from blacklist by URL
+            :return: a list of urls not valid or not found
+        """
+        return self.__remove_channels_url(urls, BlacklistEnums.Blacklisted)
 
     def remove_blacklist(self, ids):
-        """Removes channels from blacklist by ID"""
-        self.__remove_channels(ids)
+        """Removes channels from blacklist by ID
+         :return: a list of ids not valid or not found"""
+        return self.__remove_channels(ids, BlacklistEnums.Blacklisted)
 
     def remove_whitelist_url(self, urls):
-        """Removes channels from whitelist by URL"""
-        self.__remove_channels_url(urls)
+        """Removes channels from whitelist by URL
+         :return: a list of urls not valid or not found"""
+        return self.__remove_channels_url(urls, BlacklistEnums.Whitelisted)
 
-    def remove_whitelist_url(self, ids):
-        """Removes channels from whitelist by ID"""
-        self.__remove_channels(ids)
+    def remove_whitelist(self, ids):
+        """Removes channels from whitelist by ID
+         :return: a list of ids not valid or not found"""
+        return self.__remove_channels(ids, BlacklistEnums.Whitelisted)
 
-    def __remove_channels_url(self, urls):
+    def __remove_channels_url(self, urls, value):
         if not isinstance(urls, list):
             urls = [urls]
-        #check that the domain is being added
-        my_urls = [url for url in urls if self.__check_domain(url)]
+                #check that the domain is being added
+        my_urls,invalid_urls = self.__split_on_condition(urls, self.__check_domain)
         #get ids
-        my_ids = [self.data.channel_id(url) for url in my_urls]
-        #remove
-        self.__remove_channels(my_ids)
+        ids = [self.data.channel_id(url) for url in my_urls]
+        valid_ids, invalid_ids = self.__split_on_condition(ids, lambda x: x and x != "PRIVATE")
+        return invalid_urls + invalid_ids + self.__remove_channels([v[0] for v in valid_ids], value)
 
-    def __remove_channels(self, ids):
+    def __remove_channels(self, ids, value):
         if not isinstance(ids, list):
             ids = [ids]
-        self.locker.acquire()
-        #add to list
-        for id in ids:
-            if id in self.list:
-                del self.list[id]
-        self.locker.release()
-        #write to wikipage
-        string = self.__serialize_list()
-        Actions.write_wiki_page(self.wiki, string, "Removing ids: " + ', '.join(ids) + " from the list")
+        invalid_ids = []
+        valid_ids = []
+        #transform
+        entries = [(id, self.domains[0]) for id in ids]
+        #update database
+        with DataBase.DataBaseWrapper(self.file, False) as db:
+            existant_channels = db.channel_exists(entries)
+            update_list = []
+            for i, channel_exists in enumerate(existant_channels):
+                if channel_exists:
+                    update_list.append(entries[i] + (BlacklistEnums.NotFound,))
+                    valid_ids.append(ids[i])
+                else:
+                    invalid_ids.append(ids[i])
+            if len(update_list):
+                db.set_blacklist(update_list)
+
+        #update the appropriate shortlist
+
+        the_list = None
+        if value == BlacklistEnums.Blacklisted:
+            the_list = self.blacklist
+        elif value == BlacklistEnums.Whitelisted:
+            the_list = self.whitelist
+        if the_list != None and len(valid_ids):
+            self.locker.acquire()
+            for id in valid_ids:
+                the_list.remove(id)
+            self.locker.release()
+        return invalid_ids
 
     def get_blacklisted_channels(self, filter):
         """returns the blacklisted channel's whos id matches this filter"""
-        return self.__get_channels(filter, self.BLACKLIST)
+        return self.__get_channels(filter, BlacklistEnums.Blacklisted)
 
     def get_whitelisted_channels(self, filter):
         """returns the whitelisted channel's whos id matches this filter"""
-        return self.__get_channels(filter, self.WHITELIST)
+        return self.__get_channels(filter, BlacklistEnums.Whitelisted)
 
     def __get_channels(self, filter, value):
-        regex = re.compile(filter)
-        self.locker.acquire()
-        copy = [k for k, v in self.list.iteritems() if regex.search(k) and v == value]
-        self.locker.release()
+        if value == BlacklistEnums.Whitelisted:
+            list = self.whitelist
+        elif value == BlacklistEnums.Blacklisted:
+            list = self.blacklist
+        else:
+            list = None
+        copy = []
+        if list:
+            regex = re.compile(filter)
+            self.locker.acquire()
+            copy = [k for k in list if regex.search(k)]
+            self.locker.release()
         return copy

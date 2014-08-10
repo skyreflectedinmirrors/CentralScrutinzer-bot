@@ -95,11 +95,13 @@ def testYoutubeExtractor(credentials):
         "https://www.youtube.com/watch?v=WkqziN8F8oM": ("BBrucker2", "http://www.youtube.com/user/BBrucker2")
     }
 
+    print "Youtube Extractor:"
     for id, response in id_to_response.iteritems():
         if y.channel_id(id) != response:
             print "Failed on ", id, response
             return False
 
+    print "Passed"
     return True
 
 
@@ -113,11 +115,13 @@ def testSoundcloudExtractor(credentials):
         "http://soundcloud.com/NOTAREALURL": None
     }
 
+    print "Soundcloud Extractor:"
     for id, response in id_to_response.iteritems():
         if y.channel_id(id) != response:
             print "Failed on: ", id, response
             return False
 
+    print "Passed"
     return True
 
 
@@ -133,10 +137,12 @@ def testBandcampExtractor(credentials):
         "http://rivka.bandcamp.com/track/better-days/https://www.youtube.com/watch?v=RVLwCLGz5hM": ("rivka.bandcamp.com", "http://rivka.bandcamp.com")
     }
 
+    print "Bandcamp Extractor:"
     for id, response in id_to_response.iteritems():
         if y.channel_id(id) != response:
             print "Failed on ", id, response
             return False
+    print "Passed"
     return True
 
 
@@ -159,10 +165,17 @@ def test_get_wiki(wiki):
 
 
 def test_black_list(credentials):
+    #remove old database
+    try:
+        os.remove("test_database.db")
+    except:
+        pass
+    with DataBase.DataBaseWrapper("test_database.db") as db:
+        pass
     y = DataExtractors.YoutubeExtractor(credentials['GOOGLEID'])
     ids = ["https://www.youtube.com/watch?v=-vihDAj5VkY", "http://youtu.be/Cg9PWSHL4Vg",
            "https://www.youtube.com/watch?v=WkqziN8F8oM"]
-    blist = Blacklist.Blacklist(credentials, y)
+    blist = Blacklist.Blacklist(y, "test_database.db")
     if not blist:
         print "Blacklist creation: Failed"
         return False
@@ -177,8 +190,8 @@ def test_black_list(credentials):
 
     #test adding to blacklist
     check = blist.add_blacklist(ids[0:2])
-    check = check and all(blist.check_blacklist(val) for val in ids[0:2])
-    check = check and not blist.check_blacklist(ids[2])
+    check = len(check) == 0 and all(blist.check_blacklist(val) == Blacklist.BlacklistEnums.Blacklisted for val in ids[0:2])
+    check = check and blist.check_blacklist(ids[2]) == Blacklist.BlacklistEnums.NotFound
     if not check:
         print "Blacklist addition: Failed"
         return False
@@ -194,31 +207,31 @@ def test_black_list(credentials):
 
     #test blacklist removal
     blist.remove_blacklist_url(ids[0])
-    check = blist.check_blacklist(ids[0])
-    if check:
+    check = blist.check_blacklist(ids[0]) == Blacklist.BlacklistEnums.NotFound
+    if not check:
         print "Blacklist removal: Failed"
         return False
     print "Blacklist removal: Passed"
 
     #test whitelist
     blist.add_whitelist(ids[0])
-    check = blist.check_blacklist(ids[0])
-    if check:
+    check = blist.check_blacklist(ids[0]) == Blacklist.BlacklistEnums.Whitelisted
+    if not check:
         print "Whitelist addition: Failed"
         return False
     print "Whitelist addition: Passed"
 
     #test whitelist removal / basic behaviour
     blist.remove_whitelist_url(ids[0])
-    check = blist.check_blacklist(ids[0])
-    if check:
+    check = blist.check_blacklist(ids[0]) == Blacklist.BlacklistEnums.NotFound
+    if not check:
         print "Whitelist removal: Failed"
         return False
     print "Whitelist removal: Passed"
 
     #now test blacklist loading
-    blist2 = Blacklist.Blacklist(credentials, y)
-    if not blist2.check_blacklist(ids[1]):
+    blist2 = Blacklist.Blacklist(y, "test_database.db")
+    if blist2.check_blacklist(ids[1]) != Blacklist.BlacklistEnums.Blacklisted:
         print "Blacklist load: Failed"
         return False
     print "Blacklist load: Passed"
