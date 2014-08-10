@@ -14,13 +14,16 @@ class IdentificationExtractor(object):
     def __init__(self, name, domains):
         self.name = name
         self.domains = domains
+
     def channel_id(self, url):
         """returns the channel id from the url
 
         :param url: the url to check
-        :return: the (channel_id, channel_url), else None if an error occurs
+        :return: the (channel_id, channel_url) else None if an error occurs
         """
         raise NotImplementedError
+
+
 
 
 class SoundCloudExtractor(IdentificationExtractor):
@@ -45,7 +48,7 @@ class SoundCloudExtractor(IdentificationExtractor):
             return None
 
         try:
-            return (response.username, response.permalink_url)
+            return response.username, response.permalink_url
         except AttributeError:
             try:
                 return (response.user['username'], response.user['permalink_url'])
@@ -59,7 +62,7 @@ class SoundCloudExtractor(IdentificationExtractor):
 
 class YoutubeExtractor(IdentificationExtractor):
     def __init__(self, key):
-        super(YoutubeExtractor, self).__init__("youtube", ['youtu.be', 'youtube.com', 'm.youtube.com'])
+        super(YoutubeExtractor, self).__init__("youtube", ['youtube.com', 'youtu.be', 'm.youtube.com'])
         self.base_url = 'https://www.googleapis.com/youtube/v3'
         self.videos_url = '/videos/'
         self.key = key
@@ -116,7 +119,7 @@ class YoutubeExtractor(IdentificationExtractor):
             return "PRIVATE"
         except Exception, e:
             logging.error()
-        return (response, "http://www.youtube.com/user/{}".format(response))
+        return response, "http://www.youtube.com/user/{}".format(response)
 
 
     def __get_video_id(self, url):
@@ -148,7 +151,7 @@ class BandCampExtractor(IdentificationExtractor):
         if not domain:
             return domain
         try:
-            return (domain, url[:url.index(domain)] + domain)
+            return domain, url[:url.index(domain)] + domain
         except:
             logging.error("Bad domain extracted from {}".format(url))
             return None
