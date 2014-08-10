@@ -43,11 +43,18 @@ class DataBaseWrapper(object):
                     blacklist integer default 0,
                     strike_count integer default 0,
                     primary key(channel_id, domain))''')
-                    self.cursor.execute('create index blist on channel_record(blacklist)')
+                    try:
+                        self.cursor.execute('create index blist on channel_record(blacklist)')
+                    except sqlite3.OperationalError, e:
+                        if str(e) == "index blist already exists":
+                            pass
+                        else:
+                            logging.critical("Could not create index blist on table channel_record")
+                            logging.debug(str(e))
                     self.db.commit()
                 except sqlite3.Error, e:
-                    logging.debug(str(e))
                     logging.critical("Could not create table channel_record")
+                    logging.debug(str(e))
                     return False
 
                 try:
@@ -56,8 +63,23 @@ class DataBaseWrapper(object):
                     channel_id text,
                     domain text,
                     date_added timestamp)''')
-                    self.cursor.execute('create index channel on reddit_record(channel_id, domain)')
-                    self.cursor.execute('create index mydate on reddit_record(date_added)')
+                    try:
+                        self.cursor.execute('create index channel on reddit_record(channel_id, domain)')
+                    except sqlite3.OperationalError, e:
+                        if str(e) == "index channel already exists":
+                            pass
+                        else:
+                            logging.critical("Could not create index channel on table reddit_record")
+                            logging.debug(str(e))
+                    try:
+                        self.cursor.execute('create index mydate on reddit_record(date_added)')
+                    except sqlite3.OperationalError, e:
+                        if str(e) == "index mydate already exists":
+                            pass
+                        else:
+                            logging.critical("Could not create index mydate on table reddit_record")
+                            logging.debug(str(e))
+
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.debug(str(e))
