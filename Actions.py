@@ -8,92 +8,83 @@ import praw.errors
 import requests
 
 
-def make_post_text(sub, title, message, callback=None, distinguish=False):
+def make_post_text(sub, title, message, distinguish=False):
     try:
         # create a post
         post = sub.submit(title, text=message, raise_captcha_exception=True)
-        if callback:
-            callback(post)
-        logging.info("Post " + post.title + " created.")
+        return post
     except praw.errors.InvalidCaptcha, e:
-        logging.warning("Warning: invalid captcha detected")
+        logging.error("Invalid captcha detected")
     except Exception, e:
-        logging.error(str(e))
-        logging.warning("Post " + title + " not created.")
+        logging.error("Post with title: " + title + "\tmessage: " + message + " not created.")
+        logging.debug(str(e))
+    return None
 
-def make_post_url(sub, title, url, callback=None, distinguish=False):
-    post = None
+def make_post_url(sub, title, url, distinguish=False):
     try:
         # create a post
         post = sub.submit(title, url=url, raise_captcha_exception=True)
-        if callback:
-            callback(post)
-        logging.info("Post " + post.title + " created.")
+        return post
     except praw.errors.InvalidCaptcha, e:
-        logging.warning("Warning: invalid captcha detected")
+        logging.error("Invalid captcha detected")
     except Exception, e:
-        logging.error(str(e))
-        logging.warning("Post " + title + " not created.")
-    return post
+        logging.error("Post with title: " + title + "\turl: " + url + " not created.")
+        logging.debug(str(e))
+    return None
 
 
-def remove_post(post, callback=None, mark_spam=False, delete=False):
+def remove_post(post, mark_spam=False, delete=False):
     try:
         if(delete):
             post.delete()
         else:
             post.remove(spam=mark_spam)
-        if callback:
-            callback(True)
-        logging.info("Post " + post.title + " was removed")
+        return True
     except Exception, e:
-        logging.error(str(e))
-        logging.warning("Post " + str(post) + " was removed")
+        logging.error("Post " + str(post) + " was not removed")
+        logging.debug(str(e))
+    return False
 
 
-def ban_user(sub, reason, user, callback=None):
+def ban_user(sub, reason, user):
     try:
         sub.add_ban(user)
-        if (callback):
-            callback(True)
         logging.info("User " + str(user) + " was banned for " + str(reason))
+        return True
     except Exception, e:
-        logging.error(str(e))
-        logging.warning("User " + str(user) + " was not successfully banned for " + str(reason))
+        logging.error("User " + str(user) + " was not successfully banned for " + str(reason))
+        logging.debug(str(e))
+    return False
 
 
-def unban_user(sub, user, callback=None):
+def unban_user(sub, user):
     try:
         sub.remove_ban(user)
-        if callback:
-            callback(True)
         logging.info("User " + str(user) + " unbanned successfully.")
+        return True
     except Exception, e:
-        logging.error(str(e))
-        logging.warning("User " + str(user) + " not unbanned successfully.")
+        logging.error("User " + str(user) + " not unbanned successfully.")
+        logging.debug(str(e))
+    return False
 
 
-def get_posts(sub, callback=None, limit=20):
+def get_posts(sub, limit=20):
     try:
         posts = sub.get_new(limit=limit)
-        if callback:
-            callback(posts)
-        if logging.getLogger().getEffectiveLevel() >= logging.INFO:
-            logging.info("Posts " + ', '.join([str(post.id) for post in posts]) + " were made successfully.")
+        return posts
     except Exception, e:
-        logging.info("Posts not made correctly")
-        logging.warning(str(e))
+        logging.error("Posts retrieved made correctly")
+        logging.debug(str(e))
+    return None
 
 
-def make_comment(post, text, callback=None):
+def make_comment(post, text):
     try:
         comment = post.add_comment(text)
-        if callback:
-            callback(comment)
-        logging.info("Comment " + str(comment) + " was made successfully!")
+        return True
     except Exception, e:
-        logging.error(str(e))
-        logging.warning("Comment " + (comment) + " was made successfully!")
+        logging.error("Comment " + text + " was not made successfully!")
+        logging.debug(str(e))
 
 
 import praw.helpers as helper
@@ -102,24 +93,18 @@ import praw.helpers as helper
 def get_comments(post, callback):
     try:
         comments = helper.flatten_tree(post.comments)
-        if callback:
-            callback(comments)
-        # only write if needed
-        if logging.getLogger().getEffectiveLevel() >= logging.INFO:
-            logging.info("Comments " + ', '.join([str(comment.id) for comment in comments]) + " retrieved successfully")
+        return comments
     except Exception, e:
-        logging.error(str(e))
-        logging.warning("Comments not retrieved successfully")
+        logging.error("Comments not retrieved successfully")
+        logging.debug(str(e))
 
 def remove_comment(comment, callback=None, mark_spam=False):
     try:
         comment.remove(spam=mark_spam)
-        if callback:
-            callback(comment)
-        logging.info("Comment" + str(comment) + " removed successfully")
+        return True
     except Exception, e:
-        logging.error(str(e))
-        logging.warning("Comment" + str(comment) + " not removed successfully")
+        logging.error("Comment not removed successfully")
+        logging.debug(str(e))
 
 def write_wiki_page(wiki, content, reason=''):
     """Writes to a wiki page, returns true if written successfully"""
@@ -127,7 +112,8 @@ def write_wiki_page(wiki, content, reason=''):
         wiki.edit(content=content, reason=reason)
         return True
     except Exception, e:
-        logging.critical("Error writing wiki page.")
+        logging.error("Error writing wiki page.")
+        logging.debug(str(e))
     return False
 
 def get_wiki_content(wiki):
@@ -135,8 +121,9 @@ def get_wiki_content(wiki):
     try:
         return wiki.content_md
     except Exception, e:
-        logging.warning("Could not retrieve wiki page content")
-        return None
+        logging.error("Could not retrieve wiki page content")
+        logging.debug(str(e))
+    return None
 
 def get_or_create_wiki(reddit, sub, page):
     """Returns the specified wiki page, it will be created if not already extant"""
@@ -144,20 +131,29 @@ def get_or_create_wiki(reddit, sub, page):
         wiki = reddit.get_wiki_page(sub, page)
     except requests.exceptions.HTTPError, e:
         logging.warning("Wiki page " + page + " not created for subreddit, creating...")
-        reddit.edit_wiki_page(sub, page, content="", reason="initial commit")
-        wiki = reddit.get_wiki_page(sub, page)
+        try:
+            reddit.edit_wiki_page(sub, page, content="", reason="initial commit")
+            wiki = reddit.get_wiki_page(sub, page)
+        except Exception, e:
+            logging.error("Could not create wiki page.")
+            logging.debug(str(e))
+    except Exception, e:
+        logging.error("Could not get wiki page")
+        logging.debug(str(e))
     return wiki
 
-from praw import AuthenticatedReddit
 def get_unread(reddit, limit=10):
     """Returns a list of messages
-        :type reddit AuthenticatedReddit
     """
     comments = None
     try:
         comments = reddit.get_unread(limit = limit)
     except requests.exceptions.HTTPError, e:
         logging.error("Unread mail for user could not be retrieved")
+        logging.debug(str(e))
+    except Exception, e:
+        logging.error("Unread mail for user could not be retrieved")
+        logging.debug(str(e))
     return comments
 
 def send_message(reddit, user, subject, message):
@@ -169,6 +165,11 @@ def send_message(reddit, user, subject, message):
         reddit.send_message(user, subject, message)
     except requests.exceptions.HTTPError, e:
         logging.error("Message " + subject + " could not be sent to user " + user)
+        logging.debug(str(e))
+        return False
+    except Exception, e:
+        logging.error("Message " + subject + " could not be sent to user " + user)
+        logging.debug(str(e))
         return False
     return True
 
