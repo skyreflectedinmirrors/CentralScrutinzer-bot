@@ -87,6 +87,31 @@ class DataBaseWrapper(object):
                     return False
                 return True
 
+            def newest_reddit_entries(self, limit=1):
+                try:
+                    return self.cursor.execute("select short_url from reddit_record order by date_added desc limit ?", (limit,))
+                except Exception, e:
+                    logging.error("Could not select newest reddit entries")
+                    logging.debug(str(e))
+
+            def check_channel_empty(self):
+                """Checks wheter the reddit_record is empty or not"""
+                try:
+                    list = self.cursor.execute("select * from channel_record limit 5")
+                    return list.rowcount <= 0
+                except Exception, e:
+                    logging.error("Could not check if channel_record was empty")
+                    logging.debug(str(e))
+
+            def check_reddit_empty(self):
+                """Checks wheter the reddit_record is empty or not"""
+                try:
+                    list = self.cursor.execute("select * from reddit_record limit 5")
+                    return list.rowcount <= 0
+                except Exception, e:
+                    logging.error("Could not check if reddit_record was empty")
+                    logging.debug(str(e))
+
             def regexp(self, expr, item):
                 reg = re.compile(expr)
                 return reg.search(item) is not None
@@ -107,18 +132,38 @@ class DataBaseWrapper(object):
                     logging.error("Could not add reddit entries to database")
                     logging.debug(str(e))
 
-            def get_reddit(self, channel_id, domain, return_dateadded=False):
+            def get_reddit(self, channel_id=None, domain=None, date_added=None, return_channel_id=True, return_domain=True, return_dateadded=False):
                 """returns a list of reddit entries matching the provided channel_entries
 
                 :param channel_entries: a tuple of the form (channel_id, domain)
-                :return: a list of tuples of the form (short_url, date_added (if return_dateadded))
+                :returns: a list of tuples of the form (short_url, channel_id*, domain*, date_added* (*if specified))
                 """
                 query = 'select short_url'
+                arglist = []
+                if return_channel_id:
+                    query += ', channel_id'
+                if return_domain:
+                    query += ', domain'
                 if return_dateadded:
                     query += ', date_added'
-                query+= ' from reddit_record where channel_id = ? and domain = ?'
+                query+= ' from reddit_record where '
+                if channel_id:
+                    query += 'channel_id = ?'
+                    arglist.append(channel_id)
+                if domain:
+                    if len(arglist):
+                        query += ' and '
+                    query += 'domain = ? '
+                    arglist.append(domain)
+                if date_added != None:
+                    if len(arglist):
+                        query += ' and '
+                    query += ' date_added > ?'
+                    arglist.append(date_added)
+                if not len(arglist):
+                    return None
                 try:
-                    self.cursor.execute(query, (channel_id, domain))
+                    self.cursor.execute(query, tuple(arglist))
                     return self.cursor.fetchall()
                 except sqlite3.Error, e:
                     logging.error("Could not remove short_url from database")
