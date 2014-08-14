@@ -41,24 +41,32 @@ class Blacklist(object):
                 self.whitelist.add(item[0])
 
 
-    def check_blacklist(self, url):
-        """ This method tells you whether a submission is on a blacklisted channel.
+    def check_blacklist(self, url=None, id=None):
+        """ This method tells you whether a submission is on a blacklisted channel. Either id or url must be specified
         :param url: the url to check
+        :param id: the id to check
         :return: the appropriate blacklist enum
         """
+        if not url and not id:
+            logging.warning("No url or id specified")
+            return BlacklistEnums.NotFound
+
         retval = BlacklistEnums.NotFound
-        if self.__check_domain(url):
-            channel = self.data.channel_id(url)
-            if channel and not channel == "PRIVATE":
-                self.locker.acquire()
-                if channel[0] in self.blacklist:
-                    retval = BlacklistEnums.Blacklisted
-                elif channel[0] in self.whitelist:
-                    retval = BlacklistEnums.Whitelisted
-                self.locker.release()
+        if url and self.check_domain(url):
+            id = self.data.channel_id(url)
+            if id and not id == "PRIVATE":
+                id = id[0]
+
+        if id and not id == "PRIVATE":
+            self.locker.acquire()
+            if id in self.blacklist:
+                retval = BlacklistEnums.Blacklisted
+            elif id in self.whitelist:
+                retval = BlacklistEnums.Whitelisted
+            self.locker.release()
         return retval
 
-    def __check_domain(self, url):
+    def check_domain(self, url):
         """
         Checks whether a domain is valid for this extractor
         """
@@ -97,7 +105,7 @@ class Blacklist(object):
         :return: True if successfully added, false otherwise
         """
         #check that the domain is being added
-        my_urls,invalid_urls = self.__split_on_condition(urls, self.__check_domain)
+        my_urls,invalid_urls = self.__split_on_condition(urls, self.check_domain)
         #get ids
         ids = [self.data.channel_id(url) for url in my_urls]
         valid_ids, invalid_ids = self.__split_on_condition(ids, lambda x: x and x != "PRIVATE")
@@ -161,7 +169,7 @@ class Blacklist(object):
         if not isinstance(urls, list):
             urls = [urls]
                 #check that the domain is being added
-        my_urls,invalid_urls = self.__split_on_condition(urls, self.__check_domain)
+        my_urls,invalid_urls = self.__split_on_condition(urls, self.check_domain)
         #get ids
         ids = [self.data.channel_id(url) for url in my_urls]
         valid_ids, invalid_ids = self.__split_on_condition(ids, lambda x: x and x != "PRIVATE")
