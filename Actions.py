@@ -32,8 +32,16 @@ def make_post_url(sub, title, url, distinguish=False):
         logging.debug(str(e))
     return None
 
+def approve_post(post):
+    try:
+        post.approve()
+        return True
+    except Exception, e:
+        logging.error("Post " + str(post.id) + " was not approved")
+        logging.debug(str(e))
+    return False
 
-def remove_post(post, mark_spam=False, delete=False):
+def remove_post(post, mark_spam=True, delete=False):
     try:
         if(delete):
             post.delete()
@@ -41,7 +49,7 @@ def remove_post(post, mark_spam=False, delete=False):
             post.remove(spam=mark_spam)
         return True
     except Exception, e:
-        logging.error("Post " + str(post) + " was not removed")
+        logging.error("Post " + str(post.id) + " was not removed")
         logging.debug(str(e))
     return False
 
@@ -129,6 +137,7 @@ def get_wiki_content(wiki):
 
 def get_or_create_wiki(reddit, sub, page):
     """Returns the specified wiki page, it will be created if not already extant"""
+    wiki = None
     try:
         wiki = reddit.get_wiki_page(sub, page)
     except requests.exceptions.HTTPError, e:
@@ -175,6 +184,14 @@ def send_message(reddit, user, subject, message):
         return False
     return True
 
+def xpost(post, other_sub, comment):
+    try:
+        return make_post_url(other_sub, title=post.title + "//"  + comment, url="http://redd.it/{}".format(post.id))
+    except Exception, e:
+        logging.error("Post " + str(post.id) + " could not be cross posted")
+        logging.debug(str(e))
+        return False
+
 import urlparse
 import httplib
 def resolve_url(url):
@@ -184,9 +201,9 @@ def resolve_url(url):
 
     #determine scheme and netloc
     parsed = urlparse.urlparse(url)
-    if parsed.scheme == httplib.HTTP:
+    if parsed.scheme == httplib.HTTP or parsed.scheme == "http":
         h = httplib.HTTPConnection(parsed.netloc)
-    elif parsed.scheme == httplib.HTTPS:
+    elif parsed.scheme == httplib.HTTPS or parsed.scheme == "https":
         h = httplib.HTTPSConnection(parsed.netloc)
     else:
         logging.warning("Could not determine net scheme for url " + url)
