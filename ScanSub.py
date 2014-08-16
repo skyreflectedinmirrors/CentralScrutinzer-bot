@@ -13,13 +13,16 @@ import Actions
 import utilitymethods
 import multiprocessing
 import socket
+from CentralScrutinizer import CentralScrutinizer
+import RedditThread
 
 class scan_result:
     FoundOld, DidNotFind, Error = range(3)
 
-class SubScanner(object):
-    def __init__(self, owner, credentials, policy, database_file):
+class SubScanner(RedditThread.RedditThread):
+    def __init__(self, owner):
         """Creates a new subscanner
+        :type owner: CentralScrutinizer
 
         :param owner: our owner! should implement a warn function, so we can warn them when too many errors are encountered
         :param credentials: a dictionary containing the credentials to be used
@@ -28,45 +31,20 @@ class SubScanner(object):
         """
 
         self.owner = owner
-        #first try to create all the data extractors
-        try:
-            youtube = DataExtractors.YoutubeExtractor(credentials['GOOGLEID'])
-        except Exception, e:
-            logging.critical("Could not create Youtube data extractor!")
-            logging.debug(str(e))
-
-        try:
-            soundcloud = DataExtractors.SoundCloudExtractor(credentials['SOUNDCLOUDID'])
-        except Exception, e:
-            logging.critical("Could not create Youtube data extractor!")
-            logging.debug(str(e))
-
-        try:
-            bandcamp = DataExtractors.BandCampExtractor()
-        except Exception, e:
-            logging.critical("Could not create Youtube data extractor!")
-            logging.debug(str(e))
 
         #next create a blacklist object for each
-        self.extractors = [youtube, soundcloud, bandcamp]
-        self.extractors = [e for e in self.extractors if e]
-        self.blacklists = [Blacklist.Blacklist(e, database_file) for e in self.extractors]
+        self.extractors = self.owner.extractors
+        self.blacklists = self.owner.blacklists
 
         #store policy
-        self.policy = policy
-
-        #create a wait/exit condition
-        self.wait = threading.Event()
-        self.exit = threading.Event()
-        self.paused = True
-        self.exit = False
+        self.policy = self.owner.policy
 
         #check for empty database
-        self.file = database_file
+        self.file = self.owner.database_file
         scan = False
         with DataBase.DataBaseWrapper(self.file) as db:
             if db.check_reddit_empty() and db.check_channel_empty():
-                if policy.Historical_Scan_On_New_Database:
+                if self.policy.Historical_Scan_On_New_Database:
                     scan = True
 
             #get previous ids
@@ -80,13 +58,13 @@ class SubScanner(object):
         self.cached_posts = []
 
         #create praw
-        self.praw = utilitymethods.create_multiprocess_praw(credentials)
-        self.sub = utilitymethods.get_subreddit(credentials, self.praw)
+        self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
+        self.sub = utilitymethods.get_subreddit(self.owner.credentials, self.praw)
 
         #err count
         self.errcount = 0
 
-        self.pool = multiprocessing.Pool(processes=policy.Threads)
+        self.pool = multiprocessing.Pool(processes=self.owner.policy.Threads)
 
     def __check_cached(self, id):
         return any(i == id for i in self.cached_posts)
@@ -159,11 +137,7 @@ class SubScanner(object):
     def run(self):
         while True:
             #check for pause
-            while self.wait.is_set():
-                self.wait.wait(self.policy.Pause_Period)
-            #check for exit
-            if self.exit.is_set():
-                self.__shutdown()
+            if not self.__check_status():
                 break
 
             #scan, until old id found
@@ -176,10 +150,7 @@ class SubScanner(object):
                 if retry_count == 5:
                     logging.warning("Old post with id: " + self.last_seen + " not found!")
             elif result == scan_result.Error:
-                self.errcount += 1
-
-            if self.errcount >= self.policy.Max_Err_Count:
-                self.owner.warn()
+                self.__log_error()
 
             #update old id
             with DataBase.DataBaseWrapper(self.file) as db:
