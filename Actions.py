@@ -167,6 +167,15 @@ def get_unread(reddit, limit=10):
         logging.debug(str(e))
     return comments
 
+def get_mods(reddit, sub):
+    try:
+        return reddit.get_moderators(sub)
+    except Exception, e:
+        logging.error("Could not retrieve moderators for sub: " + str(sub))
+        logging.debug(str(e))
+        return None
+
+
 def send_message(reddit, user, subject, message):
     """sends a message to user 'user' with subject and message
         :type reddit AuthenticatedReddit
