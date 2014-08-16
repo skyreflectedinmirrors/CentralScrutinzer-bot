@@ -223,7 +223,12 @@ class BlacklistQuery(RedditThread.RedditThread):
                                 Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject), "Sorry, I could not find " + notFound + " in the text {}, ask me for help for a list of valid commands and domains!".format(text))
                         else:
                             Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject), "Sorry, I did not recognize the text {}, ask me for help for a list of valid commands and domains!".format(text))
+                    #don't need to see this again
+                    message.mark_read()
             except Exception, e:
                 logging.error("Error on retrieving unread messages")
                 logging.debug(str(e))
                 self.__log_error()
+
+        #and wait
+        threading.current_thread.wait(self.policy.Blacklist_Quary_Period)
