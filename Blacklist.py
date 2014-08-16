@@ -226,8 +226,12 @@ class Blacklist(object):
             list = None
         copy = []
         if list:
-            regex = re.compile(filter)
+            if filter:
+                regex = re.compile(filter)
             self.locker.acquire()
-            copy = [k for k in list if regex.search(k)]
+            if filter:
+                copy = [k for k in list if regex.search(k)]
+            else:
+                copy = [k for k in list]
             self.locker.release()
         return copy
