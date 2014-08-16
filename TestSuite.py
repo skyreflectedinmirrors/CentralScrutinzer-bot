@@ -471,6 +471,15 @@ def test_xpost(post, credentials, praw, sub):
         print "Failed"
         return False
 
+def test_get_moderators(r, sub):
+    print "Test Get Mods:"
+    mods = a.get_mods(r, sub)
+    if len([u for u in mods if any(name == u.name for name in ['arghdos', 'centralscruuutinizer'])]) == 2:
+        print "Passed"
+        return True
+    print "Failed"
+    return False
+
 def main():
 
     g.init()
@@ -534,6 +543,8 @@ def main():
     wiki = test_create_wiki(r, sub, "test")
     test_write_wiki(wiki)
     test_get_wiki(wiki)
+
+    test_get_moderators(r, sub)
 
     #ScanSub tests
     test_scan_sub()
