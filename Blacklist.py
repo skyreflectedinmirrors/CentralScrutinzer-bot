@@ -34,11 +34,13 @@ class Blacklist(object):
         #load black and whitelist
         with DataBase.DataBaseWrapper(self.file) as db:
             blist = db.get_channels(blacklist=BlacklistEnums.Blacklisted, domain=self.domains[0])
-            for item in blist:
-                self.blacklist.add(item[0])
-            blist = db.get_channels(blacklist=BlacklistEnums.Whitelisted, domain=self.domains[0])
-            for item in blist:
-                self.whitelist.add(item[0])
+            if blist:
+                for item in blist:
+                    self.blacklist.add(item[0])
+            wlist = db.get_channels(blacklist=BlacklistEnums.Whitelisted, domain=self.domains[0])
+            if wlist:
+                for item in wlist:
+                    self.whitelist.add(item[0])
 
 
     def check_blacklist(self, url=None, id=None):
@@ -72,7 +74,7 @@ class Blacklist(object):
         """
         domain = utilitymethods.domain_extractor(url)
         if domain:
-            return any(domain.endswith(d) for d in self.domains)
+            return any(d.startswith(domain) or d.endswith(domain) for d in self.domains)
         return False
 
     def add_blacklist(self, urls):

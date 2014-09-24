@@ -13,7 +13,7 @@ import logging
 class IdentificationExtractor(object):
     def __init__(self, name, domains):
         self.name = name
-        self.domains = domains
+        self.domains = [d.lower() for d in domains]
 
     def channel_id(self, url):
         """returns the channel id from the url

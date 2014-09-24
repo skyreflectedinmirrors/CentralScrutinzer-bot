@@ -8,6 +8,8 @@ import datetime
 import re
 import textwrap
 import RedditThread
+
+
 class BlacklistQuery(RedditThread.RedditThread):
     """
     :type policy: DefaultPolicy
@@ -20,16 +22,15 @@ class BlacklistQuery(RedditThread.RedditThread):
     update-mods -- updates the modlist
     add (black)|(white)list url -- add the url of the given channel to the black/whitelist
     """
-    def __init__(self, owner, policy):
+
+    def __init__(self, owner):
         """
         :param owner: our owner! should implement a warn function, so we can warn them when too many errors are encountered
         :param policy: the policy to follow
         """
-        super(BlacklistQuery, self).__init__(owner, policy)
-        self.owner = owner
-        self.policy = self.owner.policy
+        super(BlacklistQuery, self).__init__(owner, owner.policy)
 
-        #get blacklists
+        # get blacklists
         self.blacklists = self.owner.blacklists
         #create praw
         self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
@@ -43,37 +44,88 @@ class BlacklistQuery(RedditThread.RedditThread):
         #last mod update
         self.last_mod_update = datetime.datetime.now()
 
-        self.url_regex = re.compile("(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?")
+        self.url_regex = re.compile(r"(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?")
 
-        self.print_command = re.compile("^[pP]rint\b")
-        self.add_command = re.compile("^[aA]dd\b")
-        self.remove_command = re.compile("^[rR]emove\b")
-        self.update_command = re.compile("^[uU]pdate[- ][mM]ods\b")
-        self.help_command = re.compile("^[hHelp]")
-        self.base_commands = [self.print_command, self.add_command, self.remove_command, self.update_command]
+        self.print_command = re.compile(r"^[pP]rint\b")
+        self.add_command = re.compile(r"^[aA]dd\b")
+        self.remove_command = re.compile(r"^[rR]emove\b")
+        self.update_command = re.compile(r"^[uU]pdate[- ][mM]ods\b")
+        self.help_command = re.compile(r"^[hH]elp(\b|$)")
+        self.base_commands = [self.print_command, self.add_command, self.remove_command, self.update_command,
+                              self.help_command]
 
-        self.domain_match = re.compile("\b(\w+)\b")
+        self.domain_match = re.compile(r"(\w+)\b")
 
-        self.blist_command = re.compile("\b[Bb]lacklist\b")
-        self.wlist_command = re.compile("\b[wW]hitelist\b")
-        self.filters = [re.compile('(?<!\\)\"(.+)(?<!\\)\"'), re.compile("\b(\w+)\b")]
+        self.blist_command = re.compile(r"\b[Bb]lacklist\b")
+        self.wlist_command = re.compile(r"\b[wW]hitelist\b")
+        self.filters = [re.compile(r'(?<!\\)\"(.+)(?<!\\)\"'), re.compile(r"\b(\w+)\b")]
 
+        self.short_doc_string = \
+            """Available Commands:
+                            print/add/remove/update-mods/help"""
+        self.print_doc_string = \
+            """
+                            **Print** command -- returns the black/whitelist for a given domain (optional) id filter.
+                            Usage:
+                            print
+                            whitelist/blacklist (pick one)
+                            domain (e.g. youtube, or soundcloud.com)
+                            filter (optional)
+                            """
+        self.add_doc_string = \
+            """
+                            **Add** command -- adds the channel associated with the url to the black/whitelist
+                            Usage:
+                            add
+                            whitelist/blacklist (pick one)
+                            url
+                            """
+        self.remove_doc_string = \
+            """
+                            **Remove** command -- removes the channel associated with the domain and id (or optionally url) from the black/whitelist
+                            Usage:
+                            remove
+                            whitelist/blacklist (pick one)
+                            id  (channel id)
+                            domain  (e.g. youtube, or soundcloud.com)
 
-        self.doc_string = """Available Commands:
-                            print whitelist domain filter? -- prints the whitelist for the given domain and id filter. Note: filter optional
-                            print blacklist domain filter? -- prints the blacklist for the given domain and id filter. Note: filter optional
-                            add whitelist url               -- adds the channel associated with the url to the whitelist
-                            add blacklist url               -- adds the channel associated with the url to the blacklist
-                            remove whitelist url            -- removes the channel associated with the url from the whitelist
-                            remove blacklist url            -- removes the channel associated with the url from the blacklist
-                            update-mods                     -- updates my list of moderators for this subreddit
-                            help                            -- prints this message
-                            Available Domains:
-                          """
-        self.doc_string = textwrap.dedent(self.doc_string)
-        self.domains = list(set(d.replace(".com", "").replace("http://","").replace("https://", "").replace("www.", "") for b in self.blacklists for d in b.domains))
+                            **OR**
+
+                            remove
+                            whitelist/blacklist (pick one)
+                            url  (url of a video etc. from this channel)
+                            """
+        self.update_doc_string = \
+            """
+                            **Update-mods** command -- updates the valid mod list, this is done automatically but can be manually updated
+                            Usage:
+                            update-mods
+                            """
+
+        self.help_doc_string = \
+            """
+                            **Help** command -- prints the documentation, see github for more examples
+                            help
+                            domains (optional) prints list of available domains
+                            command (optional) print the help specific for a command
+                            """
+
+        self.domains = list(set(
+            d.replace(".com", "").replace("http://", "").replace("https://", "").replace("www.", "") for b in
+            self.blacklists for d in b.domains))
+        self.domain_doc_string = "Available Domains:"
         for domain in self.domains:
-            self.doc_string += "\n" + domain
+            self.domain_doc_string += "  \n" + domain
+
+        self.doc_strings = [self.short_doc_string, self.print_doc_string, self.add_doc_string, self.remove_doc_string,
+                            self.update_doc_string, self.help_doc_string, self.domain_doc_string]
+        self.doc_strings = [s.replace("\n", "  \n") for s in self.doc_strings]
+        self.doc_string = "  \n".join(self.doc_strings)
+        self.doc_string = textwrap.dedent(self.doc_string)
+
+        self.splitter = re.compile("  |\n")
+
+        self.message_cache = []
 
     def __shutdown(self):
         pass
@@ -81,7 +133,7 @@ class BlacklistQuery(RedditThread.RedditThread):
     def update_mods(self):
         try:
             mlist = [mod.name for mod in Actions.get_mods(self.praw, self.sub)]
-            #only update if it's valid
+            # only update if it's valid
             self.mod_list = mlist
             return True
         except Exception, e:
@@ -90,37 +142,50 @@ class BlacklistQuery(RedditThread.RedditThread):
             return False
 
     def __print(self, text, user):
-        #get black/whitelist
+        lines = [l for l in self.splitter.split(text) if len(l)]
+        """
+        print
+        whitelist/blacklist (pick one)
+        domain (e.g. youtube, or soundcloud.com)
+        filter (optional)
+        """
+
+        if len(lines) < 3 or len(lines) > 4:
+            return "unrecognized"
+
+        # get black/whitelist
         blacklist = None
-        if self.blist_command.search(text):
+        result = self.blist_command.search(lines[1])
+        if result:
             blacklist = True
-        elif self.wlist_command.search(text):
+        result = self.wlist_command.search(lines[1])
+        if result:
             blacklist = False
         if blacklist is None:
             return "no blist"
 
         #get domain
-        result = self.domain_match.search(text)
+        result = self.domain_match.search(lines[2])
         if not result:
             return "no domain"
         result = result.groups()
         if not len(result):
             return "no domain"
         domain = result[0]
-        if len(any(d == domain for d in self.domains)):
+        if not any(d == domain or d.startswith(domain) for d in self.domains):
             return "invalid domain"
-        search_txt = text[text.index(domain) + len(domain):]
 
-        #get filter
-        filters = [f.search(text) for f in self.filters.search(search_txt)]
-        filters = [f for f in filters if f]
         myfilter = None
-        if len(filters):
-            result = filters[0]
-            if result:
-                result = result.groups()
-                if len(result):
-                    myfilter = result[0]
+        #get filter
+        if len(lines) > 3:
+            filters = [f.search(lines[3]) for f in self.filters]
+            filters = [f for f in filters if f]
+            if len(filters):
+                result = filters[0]
+                if result:
+                    result = result.groups()
+                    if len(result):
+                        myfilter = result[0]
 
         the_list = [b for b in self.blacklists if any(domain in d for d in b.domains)]
         if len(the_list):
@@ -141,94 +206,184 @@ class BlacklistQuery(RedditThread.RedditThread):
 
 
     def __add_remove(self, text, add):
+        lines = [l for l in self.splitter.split(text) if len(l)]
+        # line structure
+        """
+        add
+        whitelist/blacklist (pick one)
+        url
+
+        remove
+        whitelist/blacklist (pick one)
+        id  (channel id)
+        domain  (e.g. youtube, or soundcloud.com)
+
+        or
+
+        remove
+        whitelist/blacklist (pick one)
+        url
+        """
+
+        if add:
+            if len(lines) != 3:
+                return "unknown"
+        else:
+            if len(lines) < 3 or len(lines) > 4:
+                return "unknown"
+
         #get black/whitelist
         blacklist = None
-        if self.blist_command.search(text):
+        result = self.blist_command.search(lines[1])
+        if result:
             blacklist = True
-        elif self.wlist_command.search(text):
+        result = self.wlist_command.search(lines[1])
+        if result:
             blacklist = False
         if blacklist is None:
             return "no blist"
 
-        #get url
-        url = self.url_regex.search(text)
-        if url:
-            url = url.groups()
-            if len(url) != 1:
-                return "no url"
-            url = url[0]
+        url = None
+        id = None
+        #check for url
+        url = self.url_regex.search(lines[2])
+        if add and url and len(url.groups()):
+            url = lines[2][url.span()[0]:url.span()[1]]
+        elif add:
+            return "unknown"
+        elif len(lines) == 3 and url and len(url.groups()):
+            url = lines[2][url.span()[0]:url.span()[1]]
+        elif len(lines) == 4:
+            id = lines[2].strip()
+            domain = lines[3].strip().lower()
         else:
-            return "no url"
+            return "unknown"
 
         found = False
+        valid = False
         for b in self.blacklists:
+            check = url if url else domain
             if blacklist:
-                found = found or len(b.check_domain(url))
+                found = found or b.check_domain(check)
             else:
-                found = found or len(b.check_domain(url))
+                found = found or b.check_domain(check)
+            if found:
+                if blacklist:
+                    if add:
+                        invalid = b.add_blacklist(url)
+                    else:
+                        if url:
+                            invalid = b.remove_blacklist_url(url)
+                        else:
+                            invalid = b.remove_blacklist(id)
+                else:
+                    if add:
+                        invalid = b.add_whitelist(url)
+                    else:
+                        if url:
+                            invalid = b.remove_whitelist_url(self, url)
+                        else:
+                            invalid = b.remove_whitelist(id)
+                break
+
         if not found:
             return "invalid domain"
+        if invalid:
+            retstr = "invalid entry: for "
+            if url:
+                retstr += url
+            else:
+                retstr += "id = {}, domain = {}".format([id, domain])
+            return retstr
         return ""
+
+    def is_cached(self, id):
+        return id in self.message_cache
+
+    def process_message(self, message):
+        """
+        Handles the processing of unread messages, allows for easier testing
+        """
+        result = None
+        # valid author check
+        if any(name == message.author.name for name in self.mod_list) and not self.is_cached(message.id):
+            text = message.body
+            #check that it matches one of the basic commands
+            matches = [bc for bc in self.base_commands if bc.search(text)]
+            if len(matches) == 1:
+                #take care of add /removes
+                if matches[0] == self.add_command:
+                    result = self.__add_remove(text, True)
+                elif matches[0] == self.remove_command:
+                    result = self.__add_remove(text, False)
+                #update mods
+                elif matches[0] == self.update_command:
+                    if not self.update_mods():
+                        Actions.send_message(self.praw, message.author.name, "RE: Mod Update",
+                                             "Sorry, I could not update the mod-list right now, please try again later")
+                        result = ""
+                    else:
+                        Actions.send_message(self.praw, message.author.name, "RE: Mod Update", "Mod update successful!")
+                        result = ""
+                #print query
+                elif matches[0] == self.print_command:
+                    result = self.__print(text, message.author.name)
+                #help query
+                elif matches[0] == self.help_command:
+                    Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject),
+                                         self.doc_string)
+                    result = ""
+                #check errors
+                notFound = None
+                if result == "no blist":
+                    notFound = "a blacklist or whitelist"
+                elif result == "no url":
+                    notFound = "a valid url"
+                elif result == "no domain":
+                    notFound = "a domain field"
+                elif result == "invalid domain":
+                    notFound = "a valid domain"
+                elif result.startswith("invalid entry:"):
+                    notFound = "a black or whitelist entry for " + result[result.index("invalid entry:") + len(
+                        "invalid entry:"):]
+                elif result == "error":
+                    Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject),
+                                         "Sorry, an unspecified error occured.  Please submit this query to /r/centralscrutinizer as a bug")
+                if notFound:
+                    Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject),
+                                         "Sorry, I could not find " + notFound + " in your query, ask me for help for a list of valid commands and domains!")
+            else:
+                result = "unknown"
+                Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject),
+                                     "Sorry, I did not recognize your query.  \n".format(text) + self.short_doc_string)
+
+        self.message_cache.append(message.id)
+        #don't need to see this again
+        message.mark_as_read()
+        return result
+
 
     def run(self):
         while True:
             if not self.__check_status():
                 break
 
-            #see if we need to update mods
+            # see if we need to update mods
             if datetime.datetime.now() - self.last_mod_update > self.policy.Mod_Update_Period:
                 self.update_mods()
 
             #get unread
             unread = Actions.get_unread(self.praw, limit=self.policy.Unread_To_Load)
             try:
-                for message in unread:
-                    #valid author check
-                    if any(name == message.author.name for name in self.mod_list):
-                        text = message.body
-                        #check that it matches one of the basic commands
-                        matches = [bc for bc in self.base_commands if bc.search(text)]
-                        if len(matches) == 1:
-                            #take care of add /removes
-                            if matches[0] == self.add_command:
-                                result = self.__add_remove(text, True)
-                            elif matches[0] == self.remove_command:
-                                result = self.__add_remove(text, False)
-                            #update mods
-                            elif matches[0] == self.update_command:
-                                if not self.update_mods():
-                                    Actions.send_message(self.praw, message.author.name, "RE: Mod Update", "Sorry, I could not update the mod-list right now, please try again later")
-                                else:
-                                    Actions.send_message(self.praw, message.author.name, "RE: Mod Update", "Mod update successful!")
-                            #print query
-                            elif matches[0] == self.print_command:
-                                result = self.__print(text, message.author.name)
-                            #help query
-                            elif matches[0] == self.help_command:
-                                Actions.send_message(self.praw, message.author.name, self.doc_string)
-                                result = ""
-                            #check errors
-                            notFound = None
-                            if result == "no blist":
-                                notFound = "a blacklist or whitelist"
-                            elif result == "no url":
-                                notFound = "a valid url"
-                            elif result == "no domain":
-                                notFound = "a domain field"
-                            elif result == "invalid domain":
-                                notFound = "a valid domain"
-                            elif result == "error":
-                                Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject), "Sorry, an unspecified error occured.  Please submit this query to /r/centralscrutinizer as a bug")
-                            if notFound:
-                                Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject), "Sorry, I could not find " + notFound + " in the text {}, ask me for help for a list of valid commands and domains!".format(text))
-                        else:
-                            Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject), "Sorry, I did not recognize the text {}, ask me for help for a list of valid commands and domains!".format(text))
-                    #don't need to see this again
-                    message.mark_read()
+                messages = [message for message in unread]
+                for message in messages:
+                    self.process_message(message)
             except Exception, e:
                 logging.error("Error on retrieving unread messages")
                 logging.debug(str(e))
                 self.__log_error()
 
-        #and wait
-        threading.current_thread.wait(self.policy.Blacklist_Quary_Period)
+            self.message_cache = []
+
+            #and wait (min of 30s to prevent return of cached answers on default PRAW install)
+            threading.current_thread.wait(max(self.policy.Blacklist_Query_Period, 30))

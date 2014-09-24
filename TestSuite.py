@@ -12,17 +12,19 @@ import Blacklist
 import DataBase
 import datetime
 
+
 def testMultiprocess(credentials):
-    #create my reddit
+    # create my reddit
     return u.create_multiprocess_praw(credentials)
 
 
 def testRemoveComment(comment):
-    #spawn an action
+    # spawn an action
     print "Remove Comment:"
     val = a.remove_comment(comment)
     print "Passed" if val else "Failed"
     return val
+
 
 def testGetComments(sub):
     print "Get Comments:"
@@ -33,14 +35,15 @@ def testGetComments(sub):
 
 
 def testMakeComment(post):
-    #spawn an action
+    # spawn an action
     print "Make Comment:"
     comment = a.make_comment(post, "test comment")
     print "Passed" if comment else "Failed"
     return comment
 
+
 def testGetPosts(sub):
-    #spawn an action
+    # spawn an action
     print "Get Posts:"
     posts = a.get_posts(sub)
     print "Passed" if posts else "Failed"
@@ -48,7 +51,7 @@ def testGetPosts(sub):
 
 
 def testMakePostText(sub):
-    #spawn a  action
+    # spawn a  action
     print "Make Post:"
     post = a.make_post_text(sub, "testpost", "please ignore")
     print "Passed" if post else "Failed"
@@ -56,7 +59,7 @@ def testMakePostText(sub):
 
 
 def testRemovePost(sub, post):
-    #spawn a Removal action
+    # spawn a Removal action
     print "Remove Post:"
     val = a.remove_post(post)
     print "Passed" if val else "Failed"
@@ -64,7 +67,7 @@ def testRemovePost(sub, post):
 
 
 def testBanUser(sub, user):
-    #spawn a Removal action
+    # spawn a Removal action
     print "Ban user:"
     val = a.ban_user(sub, "test", user)
     print "Passed" if val else "Failed"
@@ -72,7 +75,7 @@ def testBanUser(sub, user):
 
 
 def testUnBanUser(sub, user):
-    #spawn a Removal action
+    # spawn a Removal action
     print "Unban user: "
     val = a.unban_user(sub, user)
     print "Passed" if val else "Failed"
@@ -104,8 +107,10 @@ def testSoundcloudExtractor(credentials):
 
     id_to_response = {
         "http://soundcloud.com/matt-spencer-37": ("Morty Spin", "http://soundcloud.com/matt-spencer-37"),
-        "http://soundcloud.com/maggiesmithmusic/100-needles-for-zil": ("MaggieSmithMusic", "http://soundcloud.com/maggiesmithmusic"),
-        "http://soundcloud.com/natebelasco/kanye-west-black-skinhead-vs": ("Nate Belasco", "http://soundcloud.com/natebelasco"),
+        "http://soundcloud.com/maggiesmithmusic/100-needles-for-zil": (
+            "MaggieSmithMusic", "http://soundcloud.com/maggiesmithmusic"),
+        "http://soundcloud.com/natebelasco/kanye-west-black-skinhead-vs": (
+            "Nate Belasco", "http://soundcloud.com/natebelasco"),
         "http://soundcloud.com/NOTAREALURL": None
     }
 
@@ -124,11 +129,13 @@ def testBandcampExtractor(credentials):
 
     id_to_response = {
         "http://wayneszalinski.bandcamp.com/": ("wayneszalinski.bandcamp.com", "http://wayneszalinski.bandcamp.com"),
-        "http://www.sleepwalkersbandcamp.bandcamp.com/": ("sleepwalkersbandcamp.bandcamp.com", "http://www.sleepwalkersbandcamp.bandcamp.com"),
+        "http://www.sleepwalkersbandcamp.bandcamp.com/": (
+            "sleepwalkersbandcamp.bandcamp.com", "http://www.sleepwalkersbandcamp.bandcamp.com"),
         "http://rivka.bandcamp.com/track/better-days": ("rivka.bandcamp.com", "http://rivka.bandcamp.com"),
         "jghkgkjgjhjhg.com": ("jghkgkjgjhjhg.com", "jghkgkjgjhjhg.com"),
         "jghkgkjgjhjhg": ("jghkgkjgjhjhg", "jghkgkjgjhjhg"),
-        "http://rivka.bandcamp.com/track/better-days/https://www.youtube.com/watch?v=RVLwCLGz5hM": ("rivka.bandcamp.com", "http://rivka.bandcamp.com")
+        "http://rivka.bandcamp.com/track/better-days/https://www.youtube.com/watch?v=RVLwCLGz5hM": (
+            "rivka.bandcamp.com", "http://rivka.bandcamp.com")
     }
 
     print "Bandcamp Extractor:"
@@ -159,7 +166,7 @@ def test_get_wiki(wiki):
 
 
 def test_black_list(credentials):
-    #remove old database
+    # remove old database
     try:
         os.remove("test_database.db")
     except:
@@ -184,7 +191,8 @@ def test_black_list(credentials):
 
     #test adding to blacklist
     check = blist.add_blacklist(ids[0:2])
-    check = len(check) == 0 and all(blist.check_blacklist(url=val) == Blacklist.BlacklistEnums.Blacklisted for val in ids[0:2])
+    check = len(check) == 0 and all(
+        blist.check_blacklist(url=val) == Blacklist.BlacklistEnums.Blacklisted for val in ids[0:2])
     check = check and blist.check_blacklist(url=ids[2]) == Blacklist.BlacklistEnums.NotFound
     if not check:
         print "Blacklist addition: Failed"
@@ -254,6 +262,7 @@ def test_get_message(credentials):
     print "Test Get Message: Failed"
     return True
 
+
 def test_approve_post(post):
     print "Approve Post:"
     if a.approve_post(post):
@@ -262,8 +271,12 @@ def test_approve_post(post):
     print "Failed"
     return False
 
+
 import ScanSub
 import Policies
+import CentralScrutinizer
+
+
 def test_scan_sub():
     try:
         os.remove("test_database.db")
@@ -272,7 +285,7 @@ def test_scan_sub():
     credentials = CRImport("TestCredentials.cred")
     credentials["SUBREDDIT"] = "centralscrutinizer"
 
-    #clear old subs
+    # clear old subs
     u.clear_sub(credentials, "thewhitezone")
     u.clear_sub(credentials, "centralscrutinizer")
 
@@ -287,15 +300,19 @@ def test_scan_sub():
     #h'ok here we go.
     #first we'll create three posts from a black/whitelisted channel and a not found
     with DataBase.DataBaseWrapper("test_database.db") as db:
-        entries = [("arghdos", "youtube.com", "http://www.youtube.com/user/arghdos", Blacklist.BlacklistEnums.Whitelisted, 0),
-                   ("IGN", "youtube.com", "http://www.youtube.com/user/IGN", Blacklist.BlacklistEnums.Blacklisted, 0),
-                   ("Karen Jones", "youtube.com", "http://www.youtube.com/user/Karen Jones", Blacklist.BlacklistEnums.NotFound, 0)]
+        entries = [
+            ("arghdos", "youtube.com", "http://www.youtube.com/user/arghdos", Blacklist.BlacklistEnums.Whitelisted, 0),
+            ("IGN", "youtube.com", "http://www.youtube.com/user/IGN", Blacklist.BlacklistEnums.Blacklisted, 0),
+            ("Karen Jones", "youtube.com", "http://www.youtube.com/user/Karen Jones", Blacklist.BlacklistEnums.NotFound,
+             0)]
         db.add_channels(entries)
-        #create scanner
-        ss = ScanSub.SubScanner(credentials, credentials, pol, "test_database.db") #owner as credentials is bogus, need to implement actual listener
+
+        #create scrutinizer
+        cs = CentralScrutinizer.CentralScrutinizer(credentials, pol, "test_database.db")
+        ss = cs.ss
 
         #now make posts
-        urls = ["https://www.youtube.com/watch?v=-vihDAj5VkY","https://m.youtube.com/watch?v=G4ApQrbhQp8",
+        urls = ["https://www.youtube.com/watch?v=-vihDAj5VkY", "https://m.youtube.com/watch?v=G4ApQrbhQp8",
                 "http://youtu.be/Cg9PWSHL4Vg"]
         ids = []
         for i in range(len(urls)):
@@ -333,20 +350,242 @@ def test_scan_sub():
             print "Failed"
             return False
 
-        os.system("taskkill /f /im praw-multiprocess.exe")
-        #test error
-        print "Error Test:"
-        result = ss.scan(1)
-        if result != ScanSub.scan_result.Error:
+
+from time import sleep
+
+
+def test_blacklist_query():
+    try:
+        os.remove("test_database.db")
+    except:
+        pass
+    credentials = CRImport("TestCredentials.cred")
+    credentials["SUBREDDIT"] = "centralscrutinizer"
+
+    # swap usernames
+    temp = credentials['USERNAME']
+    credentials['USERNAME'] = credentials['ALTUSER']
+    credentials['ALTUSER'] = temp
+
+    temp = credentials['PASSWORD']
+    credentials['PASSWORD'] = credentials['ALTPASS']
+    credentials['ALTPASS'] = temp
+
+    #get subs
+    mypraw = u.create_multiprocess_praw(credentials)
+    pol = Policies.DebugPolicy(None)
+
+    #alt user
+    my_handler = praw.handlers.MultiprocessHandler()
+    r = praw.Reddit(user_agent="message-send-test", handler=my_handler)
+    r.login(username=credentials['ALTUSER'], password=credentials['ALTPASS'])
+
+    #mark all old as read
+    for x in a.get_unread(mypraw, None):
+        x.mark_as_read()
+    for x in a.get_unread(r, None):
+        x.mark_as_read()
+
+    class author_dummy:
+        def __init__(self):
+            self.name = credentials['ALTUSER']
+
+    class message_dummy:
+        def __init__(self, text, id):
+            self.author = author_dummy()
+            self.body = text
+            self.id = id
+            self.subject = "test"
+
+        def mark_as_read(self):
+            pass
+
+    print "Starting Blacklist Query tests..."
+    #h'ok here we go.
+    #first we'll create three posts from a black/whitelisted channel and a not found
+    with DataBase.DataBaseWrapper("test_database.db") as db:
+        entries = [
+            ("arghdos", "youtube.com", "http://www.youtube.com/user/arghdos", Blacklist.BlacklistEnums.Whitelisted, 0),
+            ("IGN", "youtube.com", "http://www.youtube.com/user/IGN", Blacklist.BlacklistEnums.Blacklisted, 0),
+            ("Karen Jones", "youtube.com", "http://www.youtube.com/user/Karen Jones", Blacklist.BlacklistEnums.NotFound,
+             0)]
+        db.add_channels(entries)
+
+        #create scrutinizer
+        cs = CentralScrutinizer.CentralScrutinizer(credentials, pol, "test_database.db")
+        bq = cs.bquery
+
+        print "Testing Add/Remove..."
+        #test print functions
+        id = 0
+        message = message_dummy("add\nwhitelist\nhttp://soundcloud.com/maggiesmithmusic/100-needles-for-zil", id)
+        id += 1
+        result = bq.process_message(message)
+        r_list = db.get_channels(blacklist=Blacklist.BlacklistEnums.Whitelisted, domain="soundcloud",
+                                 id_filter="MaggieSmithMusic")
+        if not len(r_list) or result != "":
             print "Failed"
             return False
+
+        message = message_dummy("remove\nwhitelist\nMaggieSmithMusic\nsoundcloud", id)
+        id += 1
+        result = bq.process_message(message)
+        #result should be "" and "" should be listed in the message
+        r_list = db.get_channels(blacklist=Blacklist.BlacklistEnums.Whitelisted, domain="soundcloud",
+                                 id_filter="MaggieSmithMusic")
+        if len(r_list) or result != "":
+            print "Failed"
+            return False
+
+        message = message_dummy("add\nblacklist\nhttp://soundcloud.com/maggiesmithmusic/100-needles-for-zil", id)
+        id += 1
+        result = bq.process_message(message)
+        r_list = db.get_channels(blacklist=Blacklist.BlacklistEnums.Blacklisted, domain="soundcloud",
+                                 id_filter="MaggieSmithMusic")
+        if not len(r_list) or result != "":
+            print "Failed"
+            return False
+
+        message = message_dummy("remove\nblacklist\nhttp://soundcloud.com/maggiesmithmusic/100-needles-for-zil", id)
+        id += 1
+        result = bq.process_message(message)
+        #result should be "" and "" should be listed in the message
+        r_list = db.get_channels(blacklist=Blacklist.BlacklistEnums.Blacklisted, domain="soundcloud",
+                                 id_filter="MaggieSmithMusic")
+        if len(r_list) or result != "":
+            print "Failed"
+            return False
+        message.mark_as_read()
+        print "Add/Remove passed"
+
+        #test help message
+        print "Testing Help Message..."
+        message = message_dummy("testmessage", id)
+        id += 1
+        result = bq.process_message(message)
+        #result should be "unknown", and we should get the help message
+        message = [m for m in a.get_unread(r)][-1]
+        if not message.body.startswith('Sorry, I did not recognize your query.') or result != "unknown":
+            print "Failed"
+            return False
+        message.mark_as_read()
+        sleep(30)
+
+        message = message_dummy("help", id)
+        id += 1
+        result = bq.process_message(message)
+        #result should be "", and we should get the help message
+        message = [m for m in a.get_unread(r)][-1]
+        if message.body.startswith("Available Commands:") and result == "":
+            print "Passed"
+        else:
+            print "Failed"
+            return False
+        message.mark_as_read()
+        print "Testing print statement..."
+        sleep(30)
+
+        message = message_dummy("print\nwhitelist\nyoutube", id)
+        id += 1
+        #test print functions
+        result = bq.process_message(message)
+        #result should be "", and we should get arghdos back
+        message = [m for m in a.get_unread(r)][-1]
+        if message.body != "Results:\narghdos" or result != "":
+            print "Failed"
+            return False
+        message.mark_as_read()
+        sleep(30)
+
+        message = message_dummy("print\nwhitelist\nyoutube.com\n\"danny\"", id)
+        id += 1
+        result = bq.process_message(message)
+        #result should be "" and "" should be listed in the message
+        message = [m for m in a.get_unread(r)][-1]
+        if message.body != "Results:\n" or result != "":
+            print "Failed"
+            return False
+        message.mark_as_read()
+        sleep(30)
+
+        message = message_dummy("print\nblacklist\nyoutube.com", id)
+        id += 1
+        result = bq.process_message(message)
+        #result should be "", and we should get arghdos back
+        message = [m for m in a.get_unread(r)][-1]
+        if message.body != "Results:\nIGN" or result != "":
+            print "Failed"
+            return False
+        message.mark_as_read()
+        sleep(30)
+
+        message = message_dummy("print\nBlacklist\nyoutube\ndanny", id)
+        id += 1
+        result = bq.process_message(message)
+        #result should be "" and "" should be listed in the message
+        message = [m for m in a.get_unread(r)][-1]
+        if message.body != "Results:\n" or result != "":
+            print "Failed"
+            return False
+        message.mark_as_read()
+        print "Passed"
+        print "Test update mods..."
+
+        sleep(30)
+        #finally update-mods
+        message = message_dummy("update-mods", id)
+        id += 1
+        result = bq.process_message(message)
+        #result should be "" and "" should be listed in the message
+        message = [m for m in a.get_unread(r)][-1]
+        if message.body != "Mod update successful!" or result != "":
+            print "Failed"
+            return False
+        message.mark_as_read()
         print "Passed"
 
 
+def error_tests():
+    # kill the multiprocess
+    os.system("taskkill /f /im praw-multiprocess.exe")
+    try:
+        os.remove("test_database.db")
+    except:
+        pass
+    credentials = CRImport("TestCredentials.cred")
+    credentials["SUBREDDIT"] = "centralscrutinizer"
 
+    #clear old subs
+    u.clear_sub(credentials, "thewhitezone")
+    u.clear_sub(credentials, "centralscrutinizer")
+
+    #get subs
+    mypraw = u.create_multiprocess_praw(credentials)
+    wz = u.get_subreddit(credentials, mypraw, "thewhitezone")
+    cz = u.get_subreddit(credentials, mypraw, "centralscrutinizer")
+    pol = Policies.DebugPolicy(wz)
+
+    print "Starting ScanSub tests..."
+    print "Simple blacklist identification:"
+    #h'ok here we go.
+
+    #create scrutinizer
+    cs = CentralScrutinizer.CentralScrutinizer(credentials, pol, "test_database.db")
+    ss = cs.ss
+
+    #test error
+    print "Error Test:"
+    result = ss.scan(1)
+    if result != ScanSub.scan_result.Error:
+        print "Failed"
+        return False
+
+    print "Passed"
 
 
 import os
+
+
 def data_base_tests():
     """
     :type db: Database.Database
@@ -371,10 +610,10 @@ def data_base_tests():
             print "Passed"
 
             print "Database Channel Add:"
-            #channel_id, channel_url, blacklist, three_strikes
+            # channel_id, channel_url, blacklist, three_strikes
             channels = [('arghdos', 'youtube.com', 'https://www.youtube.com/user/arghdos', '0', '0'),
-                ("wayneszalinski.bandcamp.com", 'bandcamp.com', "wayneszalinski.bandcamp.com", '0', '1'),
-                ("https://soundcloud.com/matt-spencer-37", 'soundcloud.com', "Morty Spin", '1', '0')]
+                        ("wayneszalinski.bandcamp.com", 'bandcamp.com', "wayneszalinski.bandcamp.com", '0', '1'),
+                        ("https://soundcloud.com/matt-spencer-37", 'soundcloud.com', "Morty Spin", '1', '0')]
             db.add_channels(channels)
             print "Passed"
 
@@ -419,7 +658,8 @@ def data_base_tests():
             print "Add Reddit:"
             #short_url, channel_id, domain, date_added
             reddit_entries = [('dsadas', 'arghdos', 'youtube.com', datetime.datetime.now()),
-                              ('sdafasf', 'arghdos', 'youtube.com', datetime.datetime.now() - datetime.timedelta(days=5))]
+                              ('sdafasf', 'arghdos', 'youtube.com',
+                               datetime.datetime.now() - datetime.timedelta(days=5))]
             db.add_reddit(reddit_entries)
             print "Passed"
 
@@ -460,6 +700,7 @@ def data_base_tests():
         print "Failed"
         return False
 
+
 def test_xpost(post, credentials, praw, sub):
     mysub = u.get_subreddit(credentials, praw, sub)
     val = a.xpost(post, mysub, "test")
@@ -471,6 +712,7 @@ def test_xpost(post, credentials, praw, sub):
         print "Failed"
         return False
 
+
 def test_get_moderators(r, sub):
     print "Test Get Mods:"
     mods = a.get_mods(r, sub)
@@ -480,11 +722,11 @@ def test_get_moderators(r, sub):
     print "Failed"
     return False
 
-def main():
 
+def main():
     g.init()
     g.close()
-    #import credentials
+    # import credentials
     credentials = CRImport("TestCredentials.cred")
 
     #run multiproc handler test (run before scansub tests as that kills our praw-multiproc as a test)
@@ -548,6 +790,9 @@ def main():
 
     #ScanSub tests
     test_scan_sub()
+
+    #BQ tests
+    test_blacklist_query()
 
 
 if __name__ == "__main__":

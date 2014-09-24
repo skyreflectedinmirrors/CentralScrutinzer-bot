@@ -45,7 +45,7 @@ class CentralScrutinizer(object):
         self.lock = threading.Lock()
         self.err_count = 0
 
-        self.ss = ScanSub.SubScanner(self, self.database_file)
+        self.ss = ScanSub.SubScanner(self)
         self.bquery = BlacklistQuery.BlacklistQuery(self)
 
     def request_pause(self):

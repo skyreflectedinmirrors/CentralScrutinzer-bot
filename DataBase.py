@@ -118,7 +118,7 @@ class DataBaseWrapper(object):
                 return reg.search(item) is not None
 
             def domain_eq(self, domain, item):
-                return domain == item or domain.startwith(item)
+                return domain == item or domain.startswith(item)
 
             def add_reddit(self, reddit_entries):
                 """adds the supplied reddit entries to the reddit_record
@@ -150,14 +150,14 @@ class DataBaseWrapper(object):
                     query += ', domain'
                 if return_dateadded:
                     query += ', date_added'
-                query+= ' from reddit_record where '
+                query += ' from reddit_record where '
                 if channel_id:
                     query += 'channel_id = ?'
                     arglist.append(channel_id)
                 if domain:
                     if len(arglist):
                         query += ' and '
-                    query += 'domain domain_eq ? '
+                    query += 'domain_eq(domain, ?)'
                     arglist.append(domain)
                 if date_added != None:
                     if len(arglist):
@@ -223,7 +223,7 @@ class DataBaseWrapper(object):
 
                 try:
                     return [self.cursor.execute("""select channel_id from channel_record where channel_id = ?
-                            and domain domain_eq ?""", channel).fetchone() is not None for channel in channel_list]
+                            and domain_eq(domain, ?)""", channel).fetchone() is not None for channel in channel_list]
                 except sqlite3.Error, e:
                     logging.error("Error on channel exists check")
                     logging.debug(str(e))
@@ -259,7 +259,7 @@ class DataBaseWrapper(object):
                 if domain:
                     if len(arglist):
                         query += " and"
-                    query += " domain domain_eq ?"
+                    query += " domain_eq(domain, ?)"
                     arglist.append(domain)
                 if strike_count:
                     if len(arglist):
@@ -290,7 +290,7 @@ class DataBaseWrapper(object):
                 """
                 try:
                     reordered = [(entry[2], entry[0], entry[1]) for entry in channel_entries]
-                    self.cursor.executemany('update channel_record set blacklist = ? where channel_id = ? and domain domain_eq ?', reordered)
+                    self.cursor.executemany('update channel_record set blacklist = ? where channel_id = ? and domain_eq(domain, ?)', reordered)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on set_blacklist.")
@@ -303,7 +303,7 @@ class DataBaseWrapper(object):
                 """
                 try:
                     reordered = [(entry[2], entry[0], entry[1]) for entry in channel_entries]
-                    self.cursor.executemany('update channel_record set strike_count = ? where channel_id = ? and domain domain_eq ?', reordered)
+                    self.cursor.executemany('update channel_record set strike_count = ? where channel_id = ? and domain_eq(domain, ?)', reordered)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on set_strikes.")
