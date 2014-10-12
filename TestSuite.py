@@ -192,15 +192,15 @@ def test_black_list(credentials):
     #test adding to blacklist
     check = blist.add_blacklist(ids[0:2])
     check = len(check) == 0 and all(
-        blist.check_blacklist(url=val) == Blacklist.BlacklistEnums.Blacklisted for val in ids[0:2])
-    check = check and blist.check_blacklist(url=ids[2]) == Blacklist.BlacklistEnums.NotFound
+        val == Blacklist.BlacklistEnums.Blacklisted for val in blist.check_blacklist(urls=ids[0:2]))
+    check = check and blist.check_blacklist(urls=ids[2])[0] == Blacklist.BlacklistEnums.NotFound
     if not check:
         print "Blacklist addition: Failed"
         return False
     print "Blacklist addition: Passed"
 
     #test channels
-    channels = blist.get_blacklisted_channels("arghdos")
+    channels = blist.get_blacklisted_channels("arghdos")[0]
     if len(channels) > 0 and channels[0] == "arghdos":
         print "Blacklist channel get: Passed"
     else:
@@ -209,7 +209,7 @@ def test_black_list(credentials):
 
     #test blacklist removal
     blist.remove_blacklist_url(ids[0])
-    check = blist.check_blacklist(url=ids[0]) == Blacklist.BlacklistEnums.NotFound
+    check = blist.check_blacklist(urls=ids[0])[0] == Blacklist.BlacklistEnums.NotFound
     if not check:
         print "Blacklist removal: Failed"
         return False
@@ -217,7 +217,7 @@ def test_black_list(credentials):
 
     #test whitelist
     blist.add_whitelist(ids[0])
-    check = blist.check_blacklist(url=ids[0]) == Blacklist.BlacklistEnums.Whitelisted
+    check = blist.check_blacklist(urls=ids[0])[0] == Blacklist.BlacklistEnums.Whitelisted
     if not check:
         print "Whitelist addition: Failed"
         return False
@@ -225,7 +225,7 @@ def test_black_list(credentials):
 
     #test whitelist removal / basic behaviour
     blist.remove_whitelist_url(ids[0])
-    check = blist.check_blacklist(url=ids[0]) == Blacklist.BlacklistEnums.NotFound
+    check = blist.check_blacklist(urls=ids[0])[0] == Blacklist.BlacklistEnums.NotFound
     if not check:
         print "Whitelist removal: Failed"
         return False
@@ -233,7 +233,7 @@ def test_black_list(credentials):
 
     #now test blacklist loading
     blist2 = Blacklist.Blacklist(y, "test_database.db")
-    if blist2.check_blacklist(url=ids[1]) != Blacklist.BlacklistEnums.Blacklisted:
+    if blist2.check_blacklist(urls=ids[1])[0] != Blacklist.BlacklistEnums.Blacklisted:
         print "Blacklist load: Failed"
         return False
     print "Blacklist load: Passed"
@@ -268,6 +268,16 @@ def test_approve_post(post):
     if a.approve_post(post):
         print "Passed"
         return True
+    print "Failed"
+    return False
+
+def test_get_by_id(praw, ids):
+    list = a.get_by_ids(praw, ids)
+    if list:
+        list = [l for l in list]
+        if len(list):
+            print "Passed"
+            return True
     print "Failed"
     return False
 
@@ -352,6 +362,69 @@ def test_scan_sub():
 
 
 from time import sleep
+
+def test_strike_counter():
+    try:
+        os.remove("test_database.db")
+    except:
+        pass
+    credentials = CRImport("TestCredentials.cred")
+
+    mypraw = u.create_multiprocess_praw(credentials)
+    pol = Policies.DebugPolicy(None)
+    sub = u.get_subreddit(credentials, mypraw)
+
+    cs = CentralScrutinizer.CentralScrutinizer(credentials, pol, "test_database.db")
+    scount = cs.scount
+
+    print "Simple strike count test:"
+    #make post
+    post = a.make_post_url(sub, "test", "https://www.youtube.com/watch?v=vmT0lCfybR4")
+
+    with DataBase.DataBaseWrapper("test_database.db") as db:
+        db.add_reddit([(post.name, "arghdos", "youtube", datetime.datetime.today())])
+        db.add_channels([("arghdos", "youtube", "http://www.youtube.com/user/arghdos", Blacklist.BlacklistEnums.NotFound, 2)])
+
+    post.set_flair("test")
+
+    #delete
+    post.delete()
+
+    #run counter
+    scount.scan()
+
+    #check strikes
+    with DataBase.DataBaseWrapper("test_database.db") as db:
+        result = db.get_channels(id_filter="arghdos", return_strikes=True)[0][-1]
+
+    if result != 3:
+        print "Failed"
+        return False
+
+    with DataBase.DataBaseWrapper("test_database.db") as db:
+        result = db.get_blacklist([("arghdos", "youtube")])[0] == Blacklist.BlacklistEnums.Blacklisted
+    if not result:
+        print "Failed"
+        return False
+
+    #set to non-blacklisted and run again to check deletion
+    db.set_blacklist([("arghdos", "youtube")], Blacklist.BlacklistEnums.NotFound)
+
+     #run counter
+    scount.scan()
+
+    #check strikes
+    with DataBase.DataBaseWrapper("test_database.db") as db:
+        result = db.get_channels(id_filter="arghdos", return_strikes=True)[0][-1]
+
+    if result != 3:
+        print "Failed"
+        return False
+
+    print "Passed"
+
+
+
 
 
 def test_blacklist_query():
@@ -641,9 +714,16 @@ def data_base_tests():
             print "Passed"
 
             print "Database Channel Blacklist Set:"
-            db.set_blacklist([('arghdos', 'youtube.com', 1)])
+            db.set_blacklist([('arghdos', 'youtube.com')], 1)
             result = db.get_channels(blacklist=1, domain='youtube.com', id_filter='arghdos')
             if not len(result):
+                print "Failed"
+                return False
+            print "Passed"
+
+            print "Database Channel Blacklist Get:"
+            result = db.get_blacklist([('arghdos', 'youtube.com')])
+            if not len(result) or result[0] != 1:
                 print "Failed"
                 return False
             print "Passed"
@@ -651,6 +731,14 @@ def data_base_tests():
             print "Database Set Strikes:"
             db.set_strikes([('arghdos', 'youtube.com', 2)])
             result = db.get_channels(strike_count=2, id_filter='arghdos')
+            if len(result) == 0:
+                print "Failed"
+                return False
+            print "Passed"
+
+            print "Database Add Strike:"
+            db.add_strike([('arghdos', 'youtube.com')])
+            result = db.get_channels(strike_count=3, id_filter='arghdos')
             if len(result) == 0:
                 print "Failed"
                 return False
@@ -724,76 +812,87 @@ def test_get_moderators(r, sub):
 
 
 def main():
-    g.init()
-    g.close()
+
+    passed = True
     # import credentials
     credentials = CRImport("TestCredentials.cred")
 
     #run multiproc handler test (run before scansub tests as that kills our praw-multiproc as a test)
     r2 = testMultiprocess(credentials)
+    passed = passed and r2 is not None
 
     #db tests
-    data_base_tests()
+    passed &= data_base_tests()
 
     #create my reddit
     r = u.create_praw(credentials)
 
     sub = r.get_subreddit(credentials['SUBREDDIT'])
 
-    testBandcampExtractor(credentials)
+    passed &= testBandcampExtractor(credentials)
 
-    testSoundcloudExtractor(credentials)
+    passed &= testSoundcloudExtractor(credentials)
 
-    testYoutubeExtractor(credentials)
+    passed &= testYoutubeExtractor(credentials)
 
-    test_black_list(credentials)
+    passed &= test_black_list(credentials)
 
     #run MakePost test
     post = testMakePostText(sub)
+    passed &= post is not None
 
     #run RemovePost test
-    testBanUser(sub, "StudabakerHoch")
+    passed &= testBanUser(sub, "StudabakerHoch")
 
     #run RemovePost test
-    testUnBanUser(sub, "StudabakerHoch")
+    passed &= testUnBanUser(sub, "StudabakerHoch")
 
     #run get post test
-    testGetPosts(sub)
+    passed &= testGetPosts(sub)
 
     #run make comment test
     comment = testMakeComment(post)
+    passed &= comment is not None
 
     #run get comments post
-    testGetComments(sub)
+    passed &= testGetComments(sub)
 
     #run make comment test
-    testRemoveComment(comment)
+    passed &= testRemoveComment(comment)
 
     #run approval test
-    test_approve_post(post)
+    passed &= test_approve_post(post)
 
-    test_xpost(post, credentials, r, "centralscrutinizer")
+    #get by id
+    passed &= test_get_by_id(r, [post.name])
+
+    #xpost
+    passed &= test_xpost(post, credentials, r, "centralscrutinizer")
 
     #run RemovePost test
-    testRemovePost(sub, post)
+    passed &= testRemovePost(sub, post)
 
     #run message tests
-    test_send_message(r, credentials)
-    test_get_message(credentials)
+    passed &= test_send_message(r, credentials)
+    passed &= test_get_message(credentials)
 
     #run wiki tests
     wiki = test_create_wiki(r, sub, "test")
-    test_write_wiki(wiki)
-    test_get_wiki(wiki)
+    passed &= wiki is not None
+    passed &= test_write_wiki(wiki)
+    passed &= test_get_wiki(wiki)
 
-    test_get_moderators(r, sub)
+    #moderators
+    passed &= test_get_moderators(r, sub)
 
     #ScanSub tests
-    test_scan_sub()
+    passed &= test_scan_sub()
 
     #BQ tests
-    test_blacklist_query()
+    passed &= test_blacklist_query()
 
+    #strike counter
+    passed &= test_strike_counter()
 
 if __name__ == "__main__":
     main()

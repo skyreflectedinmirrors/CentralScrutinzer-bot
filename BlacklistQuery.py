@@ -193,7 +193,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                 results = the_list[0].get_blacklisted_channels(myfilter)
             else:
                 results = the_list[0].get_whitelisted_channels(myfilter)
-            results = sorted(results)
+            if len(results):
+                results = sorted([result[0] for result in results])
             out_str = "\n".join(results)
             subject = "RE:{}list query".format("black" if blacklist else "white")
             subject += " w/ domain " + domain

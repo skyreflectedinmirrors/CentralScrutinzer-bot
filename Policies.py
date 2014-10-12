@@ -32,8 +32,11 @@ class DefaultPolicy(object):
     Retry_Multiplier = 2
     Errors_Before_Halt = 3
     Blacklist_Query_Period = 3 * 60 #seconds
+    Strike_Counter_Scan_History = datetime.timedelta(days=45) #go back 45 days
+    Strike_Counter_Frequency = 1 * 24 * 60 * 60 #once a day
     on_blacklist = Actions.remove_post
     on_whitelist = Actions.approve_post
+    Strike_Count_Max = 3 #three strikes, and you're out
 
 class DebugPolicy(DefaultPolicy):
     def __init__(self, altsub):

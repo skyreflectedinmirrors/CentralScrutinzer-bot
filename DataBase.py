@@ -4,6 +4,7 @@ import sqlite3
 import logging
 import datetime
 import re
+import Blacklist
 
 
 class DataBaseWrapper(object):
@@ -137,9 +138,8 @@ class DataBaseWrapper(object):
                     logging.debug(str(e))
 
             def get_reddit(self, channel_id=None, domain=None, date_added=None, return_channel_id=True, return_domain=True, return_dateadded=False):
-                """returns a list of reddit entries matching the provided channel_entries
+                """returns a list of reddit entries matching the provided search modifiers (i.e. channel_id, domain, date_added)
 
-                :param channel_entries: a tuple of the form (channel_id, domain)
                 :returns: a list of tuples of the form (short_url, channel_id*, domain*, date_added* (*if specified))
                 """
                 query = 'select short_url'
@@ -228,12 +228,12 @@ class DataBaseWrapper(object):
                     logging.error("Error on channel exists check")
                     logging.debug(str(e))
 
-            def get_channels(self, blacklist=None, domain=None, strike_count=None, id_filter=None, return_url=False, return_blacklist=False, return_strikes=False):
+            def get_channels(self, blacklist=None, blacklist_not_equal=None, domain=None, strike_count=None, id_filter=None, return_url=False, return_blacklist=False, return_strikes=False):
                 """returns the channels matching the supplied query
 
                 :param blacklist: the black/whitelist to match
                 :param domain: the domain to match
-                :param strike_count: the strike count to match
+                :param strike_count: the strike count to be less than or equal to
                 :param id_filter: regex filter
                 :return: (channel_id, domain, channel_url (if return_url), blacklist (if return_blacklist), strike_count (if return_strikes))
                          or None if empty query
@@ -256,6 +256,11 @@ class DataBaseWrapper(object):
                         query += " and"
                     query += " blacklist = ?"
                     arglist.append(blacklist)
+                elif blacklist_not_equal:
+                    if len(arglist):
+                        query += " and"
+                    query += " blacklist != ?"
+                    arglist.append(blacklist_not_equal)
                 if domain:
                     if len(arglist):
                         query += " and"
@@ -264,7 +269,7 @@ class DataBaseWrapper(object):
                 if strike_count:
                     if len(arglist):
                         query += " and"
-                    query += " strike_count = ?"
+                    query += " strike_count >= ?"
                     arglist.append(strike_count)
                 if id_filter:
                     if len(arglist):
@@ -283,17 +288,32 @@ class DataBaseWrapper(object):
                     logging.error("Error on get_channels fetch.")
                     logging.debug("domain, blacklist, id_filter:" + str(domain) + ", " + str(blacklist) + ", " + str(id_filter))
 
-            def set_blacklist(self, channel_entries):
+            def set_blacklist(self, channel_entries, value):
                 """Updates the black/whitelist for the given channel entries
 
-                :param channel_entries: a list of tuples of the form (channel_id, domain, new_blacklist)
+                :param channel_entries: a list of tuples of the form (channel_id, domain)
+                :param value: the new blacklist enum value
                 """
                 try:
-                    reordered = [(entry[2], entry[0], entry[1]) for entry in channel_entries]
-                    self.cursor.executemany('update channel_record set blacklist = ? where channel_id = ? and domain_eq(domain, ?)', reordered)
+                    self.cursor.executemany('update channel_record set blacklist = ? where channel_id = ? and domain_eq(domain, ?)', [(value, channel[0], channel[1]) for channel in channel_entries])
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on set_blacklist.")
+                    logging.debug(str(e))
+
+            def get_blacklist(self, channel_entries):
+                """Gets the blacklist for the specified channels
+
+                :param channel_entries: a list of tuples of the form (channel_id, domain)
+                """
+                try:
+                    list = []
+                    for channel in channel_entries:
+                        list.append(self.cursor.execute('select blacklist from channel_record where channel_id = ? and domain_eq(domain, ?)', channel).fetchone())
+                    list = [entry[0] if entry else Blacklist.BlacklistEnums.NotFound for entry in list]
+                    return list
+                except sqlite3.Error, e:
+                    logging.error("Error on get_blacklist.")
                     logging.debug(str(e))
 
             def set_strikes(self, channel_entries):
@@ -304,6 +324,18 @@ class DataBaseWrapper(object):
                 try:
                     reordered = [(entry[2], entry[0], entry[1]) for entry in channel_entries]
                     self.cursor.executemany('update channel_record set strike_count = ? where channel_id = ? and domain_eq(domain, ?)', reordered)
+                    self.db.commit()
+                except sqlite3.Error, e:
+                    logging.error("Error on set_strikes.")
+                    logging.debug(str(e))
+
+            def add_strike(self, channel_entries):
+                """Adds one to the strike count for the given channels
+
+                :param channel_entries: a list of tuples of the form (channel_id, domain)
+                """
+                try:
+                    self.cursor.executemany('update channel_record set strike_count = strike_count + 1 where channel_id = ? and domain_eq(domain, ?)', channel_entries)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on set_strikes.")
