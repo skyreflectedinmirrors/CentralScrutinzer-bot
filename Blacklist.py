@@ -26,47 +26,40 @@ class Blacklist(object):
         self.name = data_extractor.name
         self.data = data_extractor
         self.domains = self.data.domains
-        self.locker = Lock()
-        self.blacklist = set()
-        self.whitelist = set()
         self.file = database_file
 
-        #load black and whitelist
+        #make sure database is created
         with DataBase.DataBaseWrapper(self.file) as db:
-            blist = db.get_channels(blacklist=BlacklistEnums.Blacklisted, domain=self.domains[0])
-            if blist:
-                for item in blist:
-                    self.blacklist.add(item[0])
-            wlist = db.get_channels(blacklist=BlacklistEnums.Whitelisted, domain=self.domains[0])
-            if wlist:
-                for item in wlist:
-                    self.whitelist.add(item[0])
+            pass
 
-
-    def check_blacklist(self, url=None, id=None):
-        """ This method tells you whether a submission is on a blacklisted channel. Either id or url must be specified
-        :param url: the url to check
-        :param id: the id to check
-        :return: the appropriate blacklist enum
+    def check_blacklist(self, urls=None, ids=None):
+        """ This method tells you whether each in a list of submission is on a blacklisted channel. Either ids or urls must be specified
+        :param url: the urls to check
+        :param id: the ids to check
+        :return: the appropriate blacklist enums
         """
-        if not url and not id:
+        if not urls and not ids:
             logging.warning("No url or id specified")
             return BlacklistEnums.NotFound
 
-        retval = BlacklistEnums.NotFound
-        if url and self.check_domain(url):
-            id = self.data.channel_id(url)
-            if id and not id == "PRIVATE":
-                id = id[0]
+        if urls:
+            if not isinstance(urls, list):
+                urls = [urls]
+            results = [BlacklistEnums.NotFound for url in urls]
+            ids = [(i, self.data.channel_id(url)[0]) for i, url in enumerate(urls) if self.check_domain(url)]
+            ids = [id for id in ids if id and not id[1] == "PRIVATE"]
+        elif ids:
+            if not isinstance(ids, list):
+                ids = [ids]
+            results = [BlacklistEnums.NotFound for id in ids]
+            ids = [(i, id) for i, id in enumerate(ids) if id != "PRIVATE"]
 
-        if id and not id == "PRIVATE":
-            self.locker.acquire()
-            if id in self.blacklist:
-                retval = BlacklistEnums.Blacklisted
-            elif id in self.whitelist:
-                retval = BlacklistEnums.Whitelisted
-            self.locker.release()
-        return retval
+        with DataBase.DataBaseWrapper(self.file, False) as db:
+            temp_ret = db.get_blacklist([(id[1], self.domains[0]) for id in ids])
+            for i in range(len(ids)):
+                results[ids[i][0]] = temp_ret[i]
+
+        return results
 
     def check_domain(self, url):
         """
@@ -123,26 +116,16 @@ class Blacklist(object):
             add_list = []
             for i, channel_exists in enumerate(existant_channels):
                 if channel_exists:
-                    update_list.append((entries[i]) + (value,))
+                    update_list.append((entries[i]))
                 else:
                     add_list.append(entries[i] + (valid_ids[i][1], value, 0))
 
             #add and update channels
             if len(update_list):
-                db.set_blacklist(update_list)
+                db.set_blacklist(update_list, value)
             if len(add_list):
                 db.add_channels(add_list)
         #finally add to the appropriate shortlist
-        the_list = None
-        if value == BlacklistEnums.Blacklisted:
-            the_list = self.blacklist
-        elif value == BlacklistEnums.Whitelisted:
-            the_list = self.whitelist
-        if the_list != None and len(valid_ids):
-            self.locker.acquire()
-            for id in valid_ids:
-                the_list.add(id[0])
-            self.locker.release()
         return invalid_urls + invalid_ids
 
 
@@ -190,25 +173,13 @@ class Blacklist(object):
             update_list = []
             for i, channel_exists in enumerate(existant_channels):
                 if channel_exists:
-                    update_list.append(entries[i] + (BlacklistEnums.NotFound,))
+                    update_list.append(entries[i])
                     valid_ids.append(ids[i])
                 else:
                     invalid_ids.append(ids[i])
             if len(update_list):
-                db.set_blacklist(update_list)
+                db.set_blacklist(update_list, BlacklistEnums.NotFound)
 
-        #update the appropriate shortlist
-
-        the_list = None
-        if value == BlacklistEnums.Blacklisted:
-            the_list = self.blacklist
-        elif value == BlacklistEnums.Whitelisted:
-            the_list = self.whitelist
-        if the_list != None and len(valid_ids):
-            self.locker.acquire()
-            for id in valid_ids:
-                the_list.remove(id)
-            self.locker.release()
         return invalid_ids
 
     def get_blacklisted_channels(self, filter):
@@ -220,20 +191,5 @@ class Blacklist(object):
         return self.__get_channels(filter, BlacklistEnums.Whitelisted)
 
     def __get_channels(self, filter, value):
-        if value == BlacklistEnums.Whitelisted:
-            list = self.whitelist
-        elif value == BlacklistEnums.Blacklisted:
-            list = self.blacklist
-        else:
-            list = None
-        copy = []
-        if list:
-            if filter:
-                regex = re.compile(filter)
-            self.locker.acquire()
-            if filter:
-                copy = [k for k in list if regex.search(k)]
-            else:
-                copy = [k for k in list]
-            self.locker.release()
-        return copy
+        with DataBase.DataBaseWrapper(self.file, False) as db:
+            return db.get_channels(blacklist=value, id_filter=filter)

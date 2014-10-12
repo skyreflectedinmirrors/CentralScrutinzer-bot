@@ -201,6 +201,24 @@ def xpost(post, other_sub, comment):
         logging.debug(str(e))
         return False
 
+def get_by_ids(reddit, id_list):
+    """ Gets a list of posts by submission id
+
+    :param reddit: the praw object
+    :param id_list: the list of post id's (should be the submission's name property)
+    :return: a list of loaded posts
+    """
+    if not id_list:
+        return None
+    try:
+        return reddit.get_submissions(id_list)
+    except TypeError, e:
+        logging.error("At least one non-string in id_list passed to get_by_ids")
+    except Exception, e:
+        logging.error("Posts with id's: " + ", ".join(id_list)[:30] + " were not loaded")
+        logging.debug(str(e))
+        return None
+
 import urlparse
 import httplib
 def resolve_url(url):

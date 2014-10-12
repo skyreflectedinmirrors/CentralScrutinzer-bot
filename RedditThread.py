@@ -18,7 +18,7 @@ class RedditThread(object):
 
     def __check_status(self):
         #push back an instance
-        self.instances.append(0)
+        self.instances.insert(0, 0)
         self.instances = self.instances[:self.policy.Errors_Before_Halt]
         #check for pause
         while self.wait.is_set():
@@ -30,7 +30,7 @@ class RedditThread(object):
         return True
 
     def __log_error(self):
-        self.instances[-1] == 1
+        self.instances[0] = 1
         if sum(self.instances) == self.policy.Errors_Before_Halt:
             self.owner.request_pause()
 
