@@ -119,7 +119,7 @@ class YoutubeExtractor(IdentificationExtractor):
             return "PRIVATE"
         except Exception, e:
             logging.error()
-        return response, "http://www.youtube.com/user/{}".format(response)
+        return response, u"http://www.youtube.com/user/{}".format(response)
 
 
     def __get_video_id(self, url):
