@@ -99,8 +99,9 @@ class DataBaseWrapper(object):
             def check_channel_empty(self):
                 """Checks wheter the reddit_record is empty or not"""
                 try:
-                    list = self.cursor.execute("select * from channel_record limit 5")
-                    return list.rowcount <= 0
+                    self.cursor.execute("select count(*) from channel_record")
+                    list = self.cursor.fetchone()
+                    return list is None
                 except Exception, e:
                     logging.error("Could not check if channel_record was empty")
                     logging.debug(str(e))
@@ -108,8 +109,9 @@ class DataBaseWrapper(object):
             def check_reddit_empty(self):
                 """Checks wheter the reddit_record is empty or not"""
                 try:
-                    list = self.cursor.execute("select * from reddit_record limit 5")
-                    return list.rowcount <= 0
+                    self.cursor.execute("select count(*) from reddit_record")
+                    list = self.cursor.fetchone()
+                    return list is None
                 except Exception, e:
                     logging.error("Could not check if reddit_record was empty")
                     logging.debug(str(e))
