@@ -161,7 +161,7 @@ class DataBaseWrapper(object):
                         query += ' and '
                     query += 'domain_eq(domain, ?)'
                     arglist.append(domain)
-                if date_added != None:
+                if date_added:
                     if len(arglist):
                         query += ' and '
                     query += ' date_added > ?'
@@ -172,7 +172,7 @@ class DataBaseWrapper(object):
                     self.cursor.execute(query, tuple(arglist))
                     return self.cursor.fetchall()
                 except sqlite3.Error, e:
-                    logging.error("Could not remove short_url from database")
+                    logging.error("Error fetching entries from reddit_record")
                     logging.debug(str(e))
 
             def remove_reddit_older_than(self, days):
