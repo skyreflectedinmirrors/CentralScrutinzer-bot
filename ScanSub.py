@@ -96,7 +96,7 @@ class SubScanner(RedditThread.RedditThread):
         Allows for mass processing of past posts
         """
 
-        posts = Actions.get_posts(self.sub, 10)
+        posts = Actions.get_posts(self.sub, 900)
         try:
             post_data = [(post.created_utc, post.name, post.url, post) for post in posts]
         except socket.error, e:

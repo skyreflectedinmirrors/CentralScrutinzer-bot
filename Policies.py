@@ -33,7 +33,7 @@ class DefaultPolicy(object):
     Max_Retries = 3
     Retry_Multiplier = 2
     Errors_Before_Halt = 3
-    Blacklist_Query_Period = 3 * 60 #seconds
+    Blacklist_Query_Period = 60 #seconds
     Strike_Counter_Scan_History = datetime.timedelta(days=45) #go back 45 days
     Strike_Counter_Frequency = 1 * 24 * 60 * 60 #once a day
     on_blacklist = Actions.remove_post
