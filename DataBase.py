@@ -230,6 +230,18 @@ class DataBaseWrapper(object):
                     logging.error("Error on channel exists check")
                     logging.debug(str(e))
 
+            def reddit_exists(self, reddit_list):
+                """checks whether the specified reddit entries exist
+
+                :param reddit_list: a list of short_urls
+                :return: a list of booleans indicating whether the reddit entry exists or not
+                """
+                try:
+                    return [self.cursor.execute("""select short_url from reddit_record where short_url = ?""", (entry,)).fetchone() is not None for entry in reddit_list]
+                except sqlite3.Error, e:
+                    logging.error("Error on reddit exists check")
+                    logging.debug(str(e))
+
             def get_channels(self, blacklist=None, blacklist_not_equal=None, domain=None, strike_count=None, id_filter=None, return_url=False, return_blacklist=False, return_strikes=False):
                 """returns the channels matching the supplied query
 
