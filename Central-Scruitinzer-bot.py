@@ -15,7 +15,10 @@ def main():
     cred['SUBREDDIT'] = 'listentothis'
     wz = u.get_subreddit(cred, mypraw, "thewhitezone")
     pol = Policies.DebugPolicy(wz)
-    cs = CentralScrutinizer.CentralScrutinizer(cred, pol, "database.db", True)
+    if __debug__:
+        cs = CentralScrutinizer.CentralScrutinizer(cred, pol, "database.db", True)
+    else:
+        cs = CentralScrutinizer.CentralScrutinizer(cred, pol, "database.db")
     cs.run()
 
 if __name__ == "__main__":
