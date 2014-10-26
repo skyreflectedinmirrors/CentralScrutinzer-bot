@@ -58,6 +58,7 @@ class StrikeCounter(RedditThread.RedditThread):
                 delete_posts = []
                 for i, post in enumerate(posts):
                     if (post.author is None or (post.author is not None and post.author.name == "[deleted]")) and post.link_flair_text is not None:
+                        self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
                         increment_posts.append((channels[i], domains[i]))
                         delete_posts.append(post.name)
 
@@ -74,6 +75,9 @@ class StrikeCounter(RedditThread.RedditThread):
             channels = db.get_channels(strike_count=self.policy.Strike_Count_Max, blacklist_not_equal=Blacklist.BlacklistEnums.Blacklisted)
 
             if channels and len(channels):
+                if __debug__:
+                    for i, channel in enumerate(channels):
+                        self.policy.info(u"Adding channel to blacklist", u"channel={}, domain = {}".format(channel, domains[i]))
                 #add channels to blacklist
                 db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted)
 

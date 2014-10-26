@@ -4,6 +4,7 @@ Policies controlling the various actions and responses of the Central Scruitinze
 
 import Actions
 import datetime
+import logging
 
 class DefaultPolicy(object):
     """
@@ -20,6 +21,7 @@ class DefaultPolicy(object):
     on_blacklist -- the action to take for a blacklisted post
     on_whitelist -- the action to take for a blacklisted post
     Blacklist_Query_Period -- the time to wait between BlacklistQuery scans
+    debug_info -- a method that writes debug messages to a desired place
     """
     Historical_Scan_On_New_Database = True
     Scan_Sub_Period = 5 * 60 #seconds
@@ -38,8 +40,49 @@ class DefaultPolicy(object):
     on_whitelist = Actions.approve_post
     Strike_Count_Max = 3 #three strikes, and you're out
 
+    def debug(self, message, text=u""):
+        logging.debug(message + u"\t" + text)
+
+    def debug_url(self, message, url=u""):
+        logging.debug(message + u"\t" + url)
+
+    def info(self, message, text=u""):
+        logging.info(message + u"\t" + text)
+
+    def info_url(self, message, url=u""):
+        logging.debug(message + u"\t" + url)
+
 class DebugPolicy(DefaultPolicy):
     def __init__(self, altsub):
         self.on_blacklist = lambda post: Actions.xpost(post, altsub, "blacklist")
         self.on_whitelist = lambda post: Actions.xpost(post, altsub, "whitelist")
         self.Historical_Scan_On_New_Database = False
+        self.altsub = altsub
+
+    def debug(self, message, text=u""):
+        logging.debug(message + u"\t" + text )
+        if __debug__:
+            if text == u'':
+                text = u'This has been a test of the Central Scruuuuutinizer'
+            Actions.make_post_text(self.altsub, message, text)
+
+    def debug_url(self, message, url=u''):
+        logging.debug(message + u"\t" + url)
+        if __debug__:
+            if url.startswith(u"t3_"):
+                url = u"http://redd.it/{}".format(url[3:])
+            Actions.make_post_url(self.altsub, message, url)
+
+    def info(self, message, text=u''):
+        logging.info(message)
+        if __debug__:
+            if text == u'':
+                text = u'This has been a test of the Central Scruuuuutinizer'
+            Actions.make_post_text(self.altsub, message, text)
+
+    def info_url(self, message, url=u""):
+        logging.info(message)
+        if __debug__:
+            if url.startswith(u"t3_"):
+                url = u"http://redd.it/{}".format(url[3:])
+            Actions.make_post_url(self.altsub, message, url)

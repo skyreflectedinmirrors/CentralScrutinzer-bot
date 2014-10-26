@@ -138,6 +138,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             self.mod_list = mlist
             return True
         except Exception, e:
+            self.policy.debug(u"Error updating mod_list")
             logging.critical("Could not update moderator list!")
             logging.debug(str(e))
             return False
@@ -163,17 +164,21 @@ class BlacklistQuery(RedditThread.RedditThread):
         if result:
             blacklist = False
         if blacklist is None:
+            self.policy.debug(u"Could not find black/whitelist in message", text)
             return "no blist"
 
         #get domain
         result = self.domain_match.search(lines[2])
         if not result:
+            self.policy.debug(u"Could not find valid domain in message", text)
             return "no domain"
         result = result.groups()
         if not len(result):
+            self.policy.debug(u"Could not find valid domain in message", text)
             return "no domain"
         domain = result[0]
         if not any(d == domain or d.startswith(domain) for d in self.domains):
+            self.policy.debug(u"Could not find valid domain in message", text)
             return "invalid domain"
 
         myfilter = None
@@ -204,6 +209,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             Actions.send_message(self.praw, user, subject, "Results:\n" + out_str)
             return ""
         else:
+            self.policy.debug(u"Error gathering print data for message", text)
             return "error"
 
 
@@ -229,9 +235,11 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         if add:
             if len(lines) != 3:
+                self.policy.debug(u"Message unrecognized by add", text)
                 return "unknown"
         else:
             if len(lines) < 3 or len(lines) > 4:
+                self.policy.debug(u"Message unrecognized by remove", text)
                 return "unknown"
 
         #get black/whitelist
@@ -243,6 +251,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         if result:
             blacklist = False
         if blacklist is None:
+            self.policy.debug(u"Could not find black/whitelist in message", text)
             return "no blist"
 
         url = None
@@ -252,6 +261,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         if add and url and len(url.groups()):
             url = lines[2][url.span()[0]:url.span()[1]]
         elif add:
+            self.policy.debug(u"Could not url to add in message", text)
             return "unknown"
         elif len(lines) == 3 and url and len(url.groups()):
             url = lines[2][url.span()[0]:url.span()[1]]
@@ -259,6 +269,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             id = lines[2].strip()
             domain = lines[3].strip().lower()
         else:
+            self.policy.debug(u"Could not find url or channel/domain combo to remove in message", text)
             return "unknown"
 
         found = False
@@ -272,23 +283,30 @@ class BlacklistQuery(RedditThread.RedditThread):
             if found:
                 if blacklist:
                     if add:
+                        self.policy.debug(u"Blacklisting url", url)
                         invalid = b.add_blacklist(url)
                     else:
                         if url:
+                            self.policy.debug(u"Removing blacklist for url", url)
                             invalid = b.remove_blacklist_url(url)
                         else:
+                            self.policy.debug(u"Removing blacklist for channel", id)
                             invalid = b.remove_blacklist(id)
                 else:
                     if add:
+                        self.policy.debug(u"Whitelisting url", url)
                         invalid = b.add_whitelist(url)
                     else:
                         if url:
+                            self.policy.debug(u"Removing whitelist for url", url)
                             invalid = b.remove_whitelist_url(self, url)
                         else:
+                            self.policy.debug(u"Removing whitelist for channel", id)
                             invalid = b.remove_whitelist(id)
                 break
 
         if not found:
+            self.policy.debug(u"Could not find valid domain in message", text)
             return "invalid domain"
         if invalid:
             retstr = "invalid entry: for "
@@ -296,6 +314,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                 retstr += url
             else:
                 retstr += "id = {}, domain = {}".format([id, domain])
+            self.policy.debug(u"Invalid entry detected for message", retstr)
             return retstr
         return ""
 
@@ -372,18 +391,26 @@ class BlacklistQuery(RedditThread.RedditThread):
 
             # see if we need to update mods
             if datetime.datetime.now() - self.last_mod_update > self.policy.Mod_Update_Period:
+                if __debug__:
+                    logging.info(u"Blacklist Query updating mod list...")
                 self.update_mods()
+                if __debug__:
+                    logging.info(u"Modlist updated to: {}".format(u", ".join(self.mod_list)))
 
             #get unread
             unread = Actions.get_unread(self.praw, limit=self.policy.Unread_To_Load)
             try:
                 messages = [message for message in unread]
+                if __debug__:
+                    logging.info(u"Blacklist query processing {} messages...".format(len(messages)))
                 for message in messages:
                     self.process_message(message)
+                    if __debug__:
+                        logging.info(u"Blacklist query processing message:\n{}".format(message.body))
             except Exception, e:
                 logging.error("Error on retrieving unread messages")
                 logging.debug(str(e))
-                self.__log_error()
+                self.log_error()
 
             self.message_cache = []
 

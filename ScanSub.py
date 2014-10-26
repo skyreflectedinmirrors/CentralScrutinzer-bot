@@ -70,7 +70,7 @@ class SubScanner(RedditThread.RedditThread):
 
 
         if scan:
-            raise NotImplementedError
+            self.scan(900)
 
         #old posts stored here
         self.cached_posts = []
@@ -88,6 +88,12 @@ class SubScanner(RedditThread.RedditThread):
         for b in self.blacklists:
             if b.check_domain(url):
                 return b
+
+    def historical_scan(self):
+        """Scans the sub with more intensive detection of previously found reddit posts
+        Allows for mass processing of past posts
+        """
+        pass
 
     def scan(self, limit=10):
         """Scans the sub.
@@ -118,8 +124,7 @@ class SubScanner(RedditThread.RedditThread):
             #if we've reached the last one, break
             if post_data[i][0] <= self.last_seen:
                 found_old = True
-                self.last_seen = post_data[i][0]
-                break
+                continue
 
             #don't look at old ones again
             if self.__check_cached(post_data[i][1]):
@@ -127,6 +132,9 @@ class SubScanner(RedditThread.RedditThread):
             self.cached_posts.append(post_data[i][1])
 
             look_at.append((i, url))
+
+        if found_old:
+            self.last_seen = max([post[0] for post in post_data])
 
         for blacklist in self.blacklists:
             temp = [(url[0], url[1]) for url in look_at if blacklist.check_domain(url[1])]
@@ -138,15 +146,20 @@ class SubScanner(RedditThread.RedditThread):
             for i, enum in enumerate(check):
                 index = indexes[i]
                 if enum == BlacklistEnums.Blacklisted:
+                    self.policy.info_url(u"Blacklist action taken on post", post_data[index][1])
                     self.policy.on_blacklist(post_data[index][3])
                     continue
                 if enum == BlacklistEnums.Whitelisted:
+                    self.policy.info_url(u"Whitelist action taken on post", post_data[index][1])
                     self.policy.on_whitelist(post_data[index][3])
                 #if whitelisted or not found, store reddit_record
                 added_posts.append((post_data[index][1], channel_ids[i], blacklist.domains[0], datetime.datetime.now()))
 
         #finally add our new posts to the reddit_record
         with DataBase.DataBaseWrapper(self.file, False) as db:
+            if __debug__:
+                for post in added_posts:
+                    self.policy.info_url(u"Adding post {} to reddit_record".format(post[0]), post[0])
             db.add_reddit(added_posts)
 
         if found_old:
@@ -164,7 +177,12 @@ class SubScanner(RedditThread.RedditThread):
                 break
 
             #scan, until old id found
-            result = self.scan()
+            try:
+                result = self.scan()
+            except Exception, e:
+                logging.debug("Error on sub scan:\t" + str(e))
+                result = scan_result.Error
+
             if result == scan_result.DidNotFind:
                 retry_count = 0
                 reached_old = False
@@ -172,9 +190,9 @@ class SubScanner(RedditThread.RedditThread):
                     reached_old = self.scan(self.policy.Posts_To_Load * (retry_count + 1) * self.policy.Retry_Multiplier)
                     retry_count += 1
                 if retry_count == 5:
-                    logging.warning("Old post with id: " + self.last_seen + " not found!")
+                    logging.warning("Old post made at: " + self.last_seen + " not found!")
             elif result == scan_result.Error:
-                self.__log_error()
+                self.log_error()
             elif result == scan_result.FoundOld:
                 #don't need old cached posts anymore
                 self.cached_posts = []
@@ -190,6 +208,7 @@ class SubScanner(RedditThread.RedditThread):
                         self.last_seen = self.last_seen.next().created_utc
                     else:
                         self.last_seen = 0
+                    self.policy.info(u"Sub Scan last_seen updated to {}".format(self.last_seen))
 
             #and wait
             time.sleep(self.policy.Scan_Sub_Period)
