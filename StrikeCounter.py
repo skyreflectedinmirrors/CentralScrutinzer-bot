@@ -14,7 +14,10 @@ class StrikeCounter(RedditThread.RedditThread):
     """
 
     def __init__(self, owner):
+<<<<<<< HEAD
         super(StrikeCounter, self).__init__(owner, owner.policy)
+=======
+>>>>>>> origin/master
         self.owner = owner
         self.policy = owner.policy
         self.database_file = self.owner.database_file
@@ -79,7 +82,11 @@ class StrikeCounter(RedditThread.RedditThread):
     def run(self):
         while True:
             #check for pause
+<<<<<<< HEAD
             if not self.check_status():
+=======
+            if not self.__check_status():
+>>>>>>> origin/master
                 break
 
             try:

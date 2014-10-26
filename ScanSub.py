@@ -61,10 +61,17 @@ class SubScanner(RedditThread.RedditThread):
             if db.check_reddit_empty():
                 self.last_seen = 0
             else:
+<<<<<<< HEAD
                 self.last_seen = db.newest_reddit_entries().fetchone()[0]
                 self.last_seen = Actions.get_by_ids(self.praw, [self.last_seen])
                 if self.last_seen is not None:
                     self.last_seen = self.last_seen.next().created_utc
+=======
+                self.last_seen = db.newest_reddit_entries()
+                self.last_seen = Actions.get_by_ids(self.praw, [self.last_seen])
+                if self.last_seen is not None:
+                    self.last_seen = self.last_seen.created_utc
+>>>>>>> origin/master
                 else:
                     self.last_seen = 0
 
@@ -72,6 +79,18 @@ class SubScanner(RedditThread.RedditThread):
         if scan:
             raise NotImplementedError
 
+<<<<<<< HEAD
+=======
+        #old posts stored here
+        self.cached_posts = []
+
+        #create praw
+        self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
+        self.sub = utilitymethods.get_subreddit(self.owner.credentials, self.praw)
+
+        self.pool = multiprocessing.Pool(processes=self.owner.policy.Threads)
+
+>>>>>>> origin/master
     def __check_cached(self, id):
         return any(i == id for i in self.cached_posts)
 
@@ -134,7 +153,11 @@ class SubScanner(RedditThread.RedditThread):
                 if enum == BlacklistEnums.Whitelisted:
                     self.policy.on_whitelist(post_data[index][3])
                 #if whitelisted or not found, store reddit_record
+<<<<<<< HEAD
                 added_posts.append((post_data[index][1], channel_ids[i], blacklist.domains[0], datetime.datetime.now()))
+=======
+                added_posts.append((post_data[i][1], channel_ids[i], blacklist.domains[0], datetime.datetime.now()))
+>>>>>>> origin/master
 
         #finally add our new posts to the reddit_record
         with DataBase.DataBaseWrapper(self.file, False) as db:
@@ -168,7 +191,11 @@ class SubScanner(RedditThread.RedditThread):
                 self.__log_error()
             elif result == scan_result.FoundOld:
                 #don't need old cached posts anymore
+<<<<<<< HEAD
                 self.cached_posts = []
+=======
+                self.cached_posts.clear()
+>>>>>>> origin/master
 
             #update old id
             with DataBase.DataBaseWrapper(self.file) as db:

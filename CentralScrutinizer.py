@@ -5,7 +5,10 @@ import threading
 import ScanSub
 import BlacklistQuery
 import StrikeCounter
+<<<<<<< HEAD
 import atexit
+=======
+>>>>>>> origin/master
 import sys
 
 class CentralScrutinizer(object):
@@ -44,7 +47,11 @@ class CentralScrutinizer(object):
             Log.addHandler(fh)
 
         #schedule log closing for exit
+<<<<<<< HEAD
         atexit.register(self.close)
+=======
+        sys.atexit.register(self.close)
+>>>>>>> origin/master
 
         #first try to create all the data extractors
         try:
@@ -81,6 +88,7 @@ class CentralScrutinizer(object):
         self.bquery = BlacklistQuery.BlacklistQuery(self)
         self.scount = StrikeCounter.StrikeCounter(self)
 
+<<<<<<< HEAD
         self.threads = []
 
     def run(self):
@@ -94,6 +102,8 @@ class CentralScrutinizer(object):
         for thread in self.threads:
             thread.join()
 
+=======
+>>>>>>> origin/master
 
     def close(self):
         x = logging._handlers.copy()
