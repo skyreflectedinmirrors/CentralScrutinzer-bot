@@ -101,7 +101,7 @@ class DataBaseWrapper(object):
                 try:
                     self.cursor.execute("select count(*) from channel_record")
                     list = self.cursor.fetchone()
-                    return list is None
+                    return list is None or list[0] == 0
                 except Exception, e:
                     logging.error("Could not check if channel_record was empty")
                     logging.debug(str(e))
@@ -111,7 +111,7 @@ class DataBaseWrapper(object):
                 try:
                     self.cursor.execute("select count(*) from reddit_record")
                     list = self.cursor.fetchone()
-                    return list is None
+                    return list is None or list[0] == 0
                 except Exception, e:
                     logging.error("Could not check if reddit_record was empty")
                     logging.debug(str(e))
