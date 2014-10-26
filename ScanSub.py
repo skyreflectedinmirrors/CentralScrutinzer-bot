@@ -4,7 +4,6 @@ Scans the given sub for any new posts, processing them and checking for blacklis
 
 import logging
 import datetime
-import threading
 import Blacklist
 from Blacklist import BlacklistEnums
 import DataExtractors
@@ -13,8 +12,9 @@ import Actions
 import utilitymethods
 import multiprocessing
 import socket
-from CentralScrutinizer import CentralScrutinizer
+import CentralScrutinizer
 import RedditThread
+import time
 
 class scan_result:
     FoundOld, DidNotFind, Error = range(3)
@@ -29,6 +29,7 @@ class SubScanner(RedditThread.RedditThread):
         :param policy: the policy on blacklist/whitelist etc.  derived from the policy class
         :param database_file: the database file to use
         """
+        super(SubScanner, self).__init__(owner, owner.policy)
 
         self.owner = owner
 
@@ -38,6 +39,15 @@ class SubScanner(RedditThread.RedditThread):
 
         #store policy
         self.policy = self.owner.policy
+
+        #old posts stored here
+        self.cached_posts = []
+
+        #create praw
+        self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
+        self.sub = utilitymethods.get_subreddit(self.owner.credentials, self.praw)
+
+        self.pool = multiprocessing.Pool(processes=self.owner.policy.Threads)
 
         #check for empty database
         self.file = self.owner.database_file
@@ -51,25 +61,16 @@ class SubScanner(RedditThread.RedditThread):
             if db.check_reddit_empty():
                 self.last_seen = 0
             else:
-                self.last_seen = db.newest_reddit_entries()
+                self.last_seen = db.newest_reddit_entries().fetchone()[0]
                 self.last_seen = Actions.get_by_ids(self.praw, [self.last_seen])
                 if self.last_seen is not None:
-                    self.last_seen = self.last_seen.created_utc
+                    self.last_seen = self.last_seen.next().created_utc
                 else:
                     self.last_seen = 0
 
 
         if scan:
             raise NotImplementedError
-
-        #old posts stored here
-        self.cached_posts = []
-
-        #create praw
-        self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
-        self.sub = utilitymethods.get_subreddit(self.owner.credentials, self.praw)
-
-        self.pool = multiprocessing.Pool(processes=self.owner.policy.Threads)
 
     def __check_cached(self, id):
         return any(i == id for i in self.cached_posts)
@@ -133,7 +134,7 @@ class SubScanner(RedditThread.RedditThread):
                 if enum == BlacklistEnums.Whitelisted:
                     self.policy.on_whitelist(post_data[index][3])
                 #if whitelisted or not found, store reddit_record
-                added_posts.append((post_data[i][1], channel_ids[i], blacklist.domains[0], datetime.datetime.now()))
+                added_posts.append((post_data[index][1], channel_ids[i], blacklist.domains[0], datetime.datetime.now()))
 
         #finally add our new posts to the reddit_record
         with DataBase.DataBaseWrapper(self.file, False) as db:
@@ -150,13 +151,14 @@ class SubScanner(RedditThread.RedditThread):
     def run(self):
         while True:
             #check for pause
-            if not self.__check_status():
+            if not self.check_status():
                 break
 
             #scan, until old id found
             result = self.scan()
             if result == scan_result.DidNotFind:
                 retry_count = 0
+                reached_old = False
                 while not reached_old and retry_count < self.policy.Max_Retries:
                     reached_old = self.scan(self.policy.Posts_To_Load * (retry_count + 1) * self.policy.Retry_Multiplier)
                     retry_count += 1
@@ -166,12 +168,19 @@ class SubScanner(RedditThread.RedditThread):
                 self.__log_error()
             elif result == scan_result.FoundOld:
                 #don't need old cached posts anymore
-                self.cached_posts.clear()
+                self.cached_posts = []
 
             #update old id
             with DataBase.DataBaseWrapper(self.file) as db:
-                #get previous id
-                self.last_seen = db.newest_reddit_entries()
+                if db.check_reddit_empty():
+                    self.last_seen = 0
+                else:
+                    self.last_seen = db.newest_reddit_entries().fetchone()[0]
+                    self.last_seen = Actions.get_by_ids(self.praw, [self.last_seen])
+                    if self.last_seen is not None:
+                        self.last_seen = self.last_seen.next().created_utc
+                    else:
+                        self.last_seen = 0
 
             #and wait
-            threading.current_thread.wait(self.policy.Scan_Sub_Period)
+            time.sleep(self.policy.Scan_Sub_Period)
