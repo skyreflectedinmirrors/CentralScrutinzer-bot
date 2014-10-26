@@ -56,7 +56,6 @@ class DebugPolicy(DefaultPolicy):
     def __init__(self, altsub):
         self.on_blacklist = lambda post: Actions.xpost(post, altsub, "blacklist")
         self.on_whitelist = lambda post: Actions.xpost(post, altsub, "whitelist")
-        self.Historical_Scan_On_New_Database = False
         self.altsub = altsub
 
     def debug(self, message, text=u""):
