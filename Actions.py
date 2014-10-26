@@ -11,7 +11,7 @@ import requests
 def make_post_text(sub, title, message, distinguish=False):
     try:
         # create a post
-        post = sub.submit(title, text=message, raise_captcha_exception=True)
+        post = sub.submit(title=title, text=message, raise_captcha_exception=True)
         return post
     except praw.errors.InvalidCaptcha, e:
         logging.error("Invalid captcha detected")
@@ -23,7 +23,7 @@ def make_post_text(sub, title, message, distinguish=False):
 def make_post_url(sub, title, url, distinguish=False):
     try:
         # create a post
-        post = sub.submit(title, url=url, raise_captcha_exception=True)
+        post = sub.submit(title=title, url=url, raise_captcha_exception=True)
         return post
     except praw.errors.InvalidCaptcha, e:
         logging.error("Invalid captcha detected")
