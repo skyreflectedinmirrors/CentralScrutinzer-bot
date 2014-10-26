@@ -10,14 +10,13 @@ import Policies
 import utilitymethods as u
 
 def main():
-    cred = CredentialsImport.CRImport("testcredentials.cred")
+    cred = CredentialsImport.CRImport("credentials.cred")
     mypraw = u.create_multiprocess_praw(cred)
     cred['SUBREDDIT'] = 'listentothis'
     wz = u.get_subreddit(cred, mypraw, "thewhitezone")
     pol = Policies.DebugPolicy(wz)
-    cs = CentralScrutinizer.CentralScrutinizer(cred, pol, "database.db")
-    #cs.run()
-    cs.ss.run()
+    cs = CentralScrutinizer.CentralScrutinizer(cred, pol, "database.db", True)
+    cs.run()
 
 if __name__ == "__main__":
     main()
