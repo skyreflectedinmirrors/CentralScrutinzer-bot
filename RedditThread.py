@@ -16,7 +16,7 @@ class RedditThread(object):
         self.exit = threading.Event()
         self.instances = [0 for i in range(policy.Errors_Before_Halt)]
 
-    def __check_status(self):
+    def check_status(self):
         #push back an instance
         self.instances.insert(0, 0)
         self.instances = self.instances[:self.policy.Errors_Before_Halt]

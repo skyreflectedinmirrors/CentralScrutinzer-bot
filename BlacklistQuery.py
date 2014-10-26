@@ -8,6 +8,7 @@ import datetime
 import re
 import textwrap
 import RedditThread
+import time
 
 
 class BlacklistQuery(RedditThread.RedditThread):
@@ -366,7 +367,7 @@ class BlacklistQuery(RedditThread.RedditThread):
 
     def run(self):
         while True:
-            if not self.__check_status():
+            if not self.check_status():
                 break
 
             # see if we need to update mods
@@ -387,4 +388,4 @@ class BlacklistQuery(RedditThread.RedditThread):
             self.message_cache = []
 
             #and wait (min of 30s to prevent return of cached answers on default PRAW install)
-            threading.current_thread.wait(max(self.policy.Blacklist_Query_Period, 30))
+            time.sleep(max(self.policy.Blacklist_Query_Period, 30))
