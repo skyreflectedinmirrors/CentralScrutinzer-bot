@@ -28,8 +28,11 @@ class StrikeCounter(RedditThread.RedditThread):
         :return:
         """
         #scan old messages, see if deleted
-        with DataBase.DataBaseWrapper("test_database.db", False) as db:
+        with DataBase.DataBaseWrapper(self.database_file, False) as db:
             entries = db.get_reddit(date_added=datetime.datetime.now() - self.policy.Strike_Counter_Scan_History)
+            if entries is None:
+                logging.warning("No reddit entries found in database...")
+                return
 
             #loop over entries
             stride = 100
@@ -70,8 +73,9 @@ class StrikeCounter(RedditThread.RedditThread):
             #check for rule breaking channels
             channels = db.get_channels(strike_count=self.policy.Strike_Count_Max, blacklist_not_equal=Blacklist.BlacklistEnums.Blacklisted)
 
-            #add channels to blacklist
-            db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted)
+            if channels and len(channels):
+                #add channels to blacklist
+                db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted)
 
             #remove older than scan period
             db.remove_reddit_older_than(self.policy.Strike_Counter_Scan_History.days)
@@ -87,6 +91,6 @@ class StrikeCounter(RedditThread.RedditThread):
             except Exception, e:
                 logging.error("Exception occured while scanning old reddit posts")
                 logging.debug(str(e))
-                self.__log_error()
+                self.log_error()
 
             time.sleep(self.policy.Strike_Counter_Frequency)

@@ -29,7 +29,7 @@ class RedditThread(object):
             return False
         return True
 
-    def __log_error(self):
+    def log_error(self):
         self.instances[0] = 1
         if sum(self.instances) == self.policy.Errors_Before_Halt:
             self.owner.request_pause()
