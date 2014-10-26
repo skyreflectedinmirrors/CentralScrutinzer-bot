@@ -7,6 +7,7 @@ import BlacklistQuery
 import StrikeCounter
 import atexit
 import sys
+import time
 
 class CentralScrutinizer(object):
     """
@@ -82,6 +83,8 @@ class CentralScrutinizer(object):
         self.bquery = BlacklistQuery.BlacklistQuery(self)
         self.scount = StrikeCounter.StrikeCounter(self)
 
+        self.reddit_threads = [self.ss, self.bquery, self.scount]
+
         self.threads = []
 
     def run(self):
@@ -104,4 +107,10 @@ class CentralScrutinizer(object):
             i.close()
 
     def request_pause(self):
-        raise NotImplementedError
+        for thread in self.reddit_threads:
+            thread.wait.set()
+
+        time.sleep(self.policy.Pause_Period)
+
+        for thread in self.reddit_threads:
+            thread.wait.clear()
