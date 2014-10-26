@@ -118,7 +118,8 @@ class SubScanner(RedditThread.RedditThread):
                 if not len(temp):
                     continue
                 indexes, my_urls = zip(*temp)
-                channel_ids = [blacklist.data.channel_id(url)[0] for url in my_urls]
+                channel_ids = [blacklist.data.channel_id(url) for url in my_urls]
+                indexes, channel_ids = zip(*[(indexes[i], channel[0]) for i, channel in enumerate(channel_ids) if channel is not None])
                 check = blacklist.check_blacklist(ids=channel_ids)
                 for i, enum in enumerate(check):
                     index = indexes[i]

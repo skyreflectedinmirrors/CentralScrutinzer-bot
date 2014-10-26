@@ -44,13 +44,13 @@ class Blacklist(object):
 
         if urls:
             if not isinstance(urls, list):
-                urls = [urls]
+                urls = list(urls)
             results = [BlacklistEnums.NotFound for url in urls]
             ids = [(i, self.data.channel_id(url)[0]) for i, url in enumerate(urls) if self.check_domain(url)]
             ids = [id for id in ids if id and not id[1] == "PRIVATE"]
         elif ids:
             if not isinstance(ids, list):
-                ids = [ids]
+                ids = list(ids)
             results = [BlacklistEnums.NotFound for id in ids]
             ids = [(i, id) for i, id in enumerate(ids) if id != "PRIVATE"]
 
