@@ -615,6 +615,7 @@ def test_blacklist_query():
             return False
         message.mark_as_read()
         print "Passed"
+    return True
 
 
 def error_tests():
