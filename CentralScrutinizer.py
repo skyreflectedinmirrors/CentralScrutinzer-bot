@@ -81,6 +81,19 @@ class CentralScrutinizer(object):
         self.bquery = BlacklistQuery.BlacklistQuery(self)
         self.scount = StrikeCounter.StrikeCounter(self)
 
+        self.threads = []
+
+    def run(self):
+        self.threads.append(threading.Thread(target=self.ss.run))
+        self.threads.append(threading.Thread(target=self.bquery.run))
+        self.threads.append(threading.Thread(target=self.scount.run))
+
+        for thread in self.threads:
+            thread.start()
+
+        for thread in self.threads:
+            thread.join()
+
 
     def close(self):
         x = logging._handlers.copy()
