@@ -120,6 +120,7 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         self.doc_strings = [self.short_doc_string, self.print_doc_string, self.add_doc_string, self.remove_doc_string,
                             self.update_doc_string, self.help_doc_string, self.domain_doc_string]
+        self.doc_strings = [textwrap.dedent(s) for s in self.doc_strings]
         self.doc_strings = [s.replace("\n", "  \n") for s in self.doc_strings]
         self.doc_string = "  \n".join(self.doc_strings)
         self.doc_string = textwrap.dedent(self.doc_string)
