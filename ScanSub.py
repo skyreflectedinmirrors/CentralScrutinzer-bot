@@ -98,7 +98,7 @@ class SubScanner(RedditThread.RedditThread):
 
         posts = Actions.get_posts(self.sub, 900)
         try:
-            post_data = [(post.created_utc, post.name, post.url, post) for post in posts]
+            post_data = [(post.created_utc, post.name, post.url, post) for post in posts if not post.is_self]
         except socket.error, e:
             if e.errno == 10061:
                 logging.critical("praw-multiprocess not started!")
@@ -159,7 +159,7 @@ class SubScanner(RedditThread.RedditThread):
         added_posts = []
 
         try:
-            post_data = [(post.created_utc, post.name, post.url, post) for post in posts]
+            post_data = [(post.created_utc, post.name, post.url, post) for post in posts if not post.is_self]
         except socket.error, e:
             if e.errno == 10061:
                 logging.critical("praw-multiprocess not started!")
@@ -171,6 +171,10 @@ class SubScanner(RedditThread.RedditThread):
         #get list we need to process
         look_at = []
         for i, url in enumerate(urls):
+            #ignore improperly resolved urls
+            if url is None:
+                continue
+
             #if we've reached the last one, break
             if post_data[i][0] <= self.last_seen:
                 found_old = True
