@@ -6,6 +6,8 @@ import utilitymethods
 import Actions
 import logging
 import Blacklist
+import multiprocessing
+from collections import defaultdict
 
 class StrikeCounter(RedditThread.RedditThread):
     """
@@ -19,6 +21,14 @@ class StrikeCounter(RedditThread.RedditThread):
         self.policy = owner.policy
         self.database_file = self.owner.database_file
         self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
+        self.blacklists = self.owner.blacklists
+
+    def __get_unique(self, seq, seq2):
+        tally = defaultdict(list)
+        for i,item in enumerate(seq):
+            tally[(item, seq2[i])].append(i)
+        return [(key, locs[0]) for key, locs in tally.items()
+                                if len(locs) == 1]
 
     def scan(self):
         """
@@ -52,6 +62,34 @@ class StrikeCounter(RedditThread.RedditThread):
                 if not posts:
                     logging.info("Bad post retrieve")
                     return
+
+                #make sure channels exist
+                add_channels = []
+                add_ids = []
+                add_urls = []
+                unique_channels = self.__get_unique(channels, domains)
+                exists = db.channel_exists([channel[0] for channel in unique_channels])
+                for i, e in enumerate(exists):
+                    if not e:
+                        #pull up the url
+                        add_ids.append(unique_channels[i][1])
+
+                #resolve all the added ids
+                if add_ids:
+                    add_urls = [posts[i].url for i in add_ids]
+                    for blacklist in self.blacklists:
+                        temp = [(add_ids[i], url) for i, url in enumerate(add_urls) if blacklist.check_domain(url)]
+                        if not len(temp):
+                            continue
+                        indexes, my_urls = zip(*temp)
+                        for i, index in enumerate(indexes):
+                            add_channels.append((channels[index], domains[index], blacklist.data.channel_id(my_urls[i])[1], Blacklist.BlacklistEnums.NotFound, 0))
+                    if __debug__:
+                        pass
+                        #for i, index in enumerate(indexes):
+                            #self.policy.info(u"Adding {} to channel_record".format(channels[index]), u"channel={}, domain = {}".format(channels[index], domains[index]))
+                    db.add_channels(add_channels)
+
 
                 #check for deleted / (not by automod)
                 increment_posts = []
