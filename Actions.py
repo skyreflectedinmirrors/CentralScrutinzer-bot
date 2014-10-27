@@ -243,7 +243,7 @@ def resolve_url(url):
 
     #ask server
     try:
-        h.request('HEAD', resource)
+        h.request('HEAD', resource, headers={"USER-AGENT" : "Mozilla/5.0 (X11; Linux x86_64; rv:13.0) Gecko/13.0 Firefox/13.0"})
         response = h.getresponse()
     except httplib.error, e:
         logging.error("Error on resolving url " + url + "\n" + str(e))
