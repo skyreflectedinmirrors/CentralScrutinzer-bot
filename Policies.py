@@ -35,7 +35,7 @@ class DefaultPolicy(object):
     Errors_Before_Halt = 3
     Blacklist_Query_Period = 60 #seconds
     Strike_Counter_Scan_History = datetime.timedelta(days=45) #go back 45 days
-    Strike_Counter_Frequency = 1 * 24 * 60 * 60 #once a day
+    Strike_Counter_Frequency = 3 * 60 * 60 #every three hours
     on_blacklist = Actions.remove_post
     on_whitelist = Actions.approve_post
     Strike_Count_Max = 3 #three strikes, and you're out
