@@ -119,6 +119,8 @@ class SubScanner(RedditThread.RedditThread):
                     continue
                 indexes, my_urls = zip(*temp)
                 channel_ids = [blacklist.data.channel_id(url) for url in my_urls]
+                if len(channel_ids) == 1 and channel_ids[0] == None:
+                    continue #avoid bug w/ trying to zip an empty list
                 indexes, channel_ids = zip(*[(indexes[i], channel[0]) for i, channel in enumerate(channel_ids) if channel is not None])
                 check = blacklist.check_blacklist(ids=channel_ids)
                 for i, enum in enumerate(check):
@@ -135,8 +137,9 @@ class SubScanner(RedditThread.RedditThread):
 
             #finally add our new posts to the reddit_record
             if __debug__:
-                for post in added_posts:
-                    self.policy.info_url(u"Adding post {} to reddit_record".format(post[0]), post[0])
+                pass
+                #for post in added_posts:
+                    #self.policy.info_url(u"Adding post {} to reddit_record".format(post[0]), post[0])
 
             db.add_reddit(added_posts)
 
@@ -185,7 +188,10 @@ class SubScanner(RedditThread.RedditThread):
             if not len(temp):
                 continue
             indexes, my_urls = zip(*temp)
-            channel_ids = [blacklist.data.channel_id(url)[0] for url in my_urls]
+            channel_ids = [blacklist.data.channel_id(url) for url in my_urls]
+            if len(channel_ids) == 1 and channel_ids[0] == None:
+                continue #avoid bug w/ trying to zip an empty list
+            indexes, channel_ids = zip(*[(indexes[i], channel[0]) for i, channel in enumerate(channel_ids) if channel is not None])
             check = blacklist.check_blacklist(ids=channel_ids)
             for i, enum in enumerate(check):
                 index = indexes[i]
@@ -250,13 +256,15 @@ class SubScanner(RedditThread.RedditThread):
                 if db.check_reddit_empty():
                     self.last_seen = 0
                 else:
+                    save = self.last_seen
                     self.last_seen = db.newest_reddit_entries().fetchone()[0]
                     self.last_seen = Actions.get_by_ids(self.praw, [self.last_seen])
                     if self.last_seen is not None:
                         self.last_seen = self.last_seen.next().created_utc
                     else:
                         self.last_seen = 0
-                    self.policy.info(u"Sub Scan last_seen updated to {}".format(self.last_seen))
+                    if self.last_seen != save:
+                        self.policy.info(u"Sub Scan last_seen updated to {}".format(self.last_seen))
 
             #and wait
             time.sleep(self.policy.Scan_Sub_Period)
