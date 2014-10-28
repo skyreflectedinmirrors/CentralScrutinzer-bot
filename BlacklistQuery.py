@@ -137,6 +137,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             mlist = [mod.name for mod in Actions.get_mods(self.praw, self.sub)]
             # only update if it's valid
             self.mod_list = mlist
+            self.last_mod_update = datetime.datetime.now()
             return True
         except Exception, e:
             self.policy.debug(u"Error updating mod_list")
