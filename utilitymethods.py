@@ -34,6 +34,8 @@ def clear_sub(credentials, sub, num=20):
     :return:
     """
     num = min(num, 900)
+    if num < 0:
+        num = int(1e6)
     mypraw = create_multiprocess_praw(credentials)
     sub = get_subreddit(credentials, mypraw, sub)
     old_stream = p.helpers.submission_stream(mypraw, sub, limit=num)
