@@ -67,7 +67,7 @@ class Blacklist(object):
         """
         domain = utilitymethods.domain_extractor(url)
         if domain:
-            return any(d.startswith(domain) or d.endswith(domain) for d in self.domains)
+            return any(domain.startswith(d) or domain.endswith(d) for d in self.domains)
         return False
 
     def add_blacklist(self, urls):

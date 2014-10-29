@@ -8,6 +8,7 @@ from apiclient.discovery import build #constructs youtube API urls
 import apiclient.errors
 import re
 import logging
+import utilitymethods
 
 #base class for extractors
 class IdentificationExtractor(object):
@@ -147,9 +148,9 @@ class BandCampExtractor(IdentificationExtractor):
         "http://www.sleepwalkersbandcamp.bandcamp.com/" -> "sleepwalkersbandcamp.bandcamp.com"
         :returns: the id, or None if an error is encountered
         """
-        domain = domain_extractor(url)
+        domain = utilitymethods.domain_extractor(url)
         if not domain:
-            return domain
+            return None
         try:
             return domain, url[:url.index(domain)] + domain
         except:
