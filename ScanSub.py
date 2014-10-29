@@ -196,7 +196,7 @@ class SubScanner(RedditThread.RedditThread):
             return scan_result.Error
         #get list we need to process
         look_at = []
-        for post in enumerate(post_data):
+        for post in post_data:
             #ignore improperly resolved urls
             if post[2] is None:
                 continue
