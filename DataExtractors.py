@@ -92,7 +92,7 @@ class YoutubeExtractor(IdentificationExtractor):
 
         try:
             #should be the first id in the list
-            response = response.get("items")[0].get("snippet").get("channelId")
+            channel_id = response.get("items")[0].get("snippet").get("channelId")
         except IndexError:
             logging.info("Deleted or private youtube video url requested: {}".format(url))
             return "PRIVATE"
@@ -101,25 +101,25 @@ class YoutubeExtractor(IdentificationExtractor):
 
 
          #avoid asking if the ID is marked PRIVATE
-        if response == "PRIVATE" or response == None:
+        if channel_id == "PRIVATE" or channel_id == None:
             return response
 
         # ask for channel w/ id
         try:
-            response = self.youtube.channels().list(part='snippet', id=response).execute()
+            response = self.youtube.channels().list(part='snippet', id=channel_id).execute()
         except apiclient.errors.HttpError:
-            logging.error("Bad request for youtube video id " + str(response))
+            logging.error("Bad request for youtube video id " + str(channel_id))
             return None
 
         try:
             #should be the first id in the list
-            response = response.get("items")[0].get("snippet").get("title")
+            channel_title = response.get("items")[0].get("snippet").get("title")
         except IndexError:
             logging.info("Deleted or private youtube channel requested: {}".format(id))
             return "PRIVATE"
         except Exception, e:
             logging.error()
-        return response, u"http://www.youtube.com/user/{}".format(response)
+        return channel_title, u"http://www.youtube.com/channel/{}".format(channel_id)
 
 
     def __get_video_id(self, url):
