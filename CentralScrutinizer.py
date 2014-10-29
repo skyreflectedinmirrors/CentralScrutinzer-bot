@@ -58,17 +58,17 @@ class CentralScrutinizer(object):
         try:
             soundcloud = DataExtractors.SoundCloudExtractor(credentials['SOUNDCLOUDID'])
         except Exception, e:
-            logging.critical("Could not create Youtube data extractor!")
+            logging.critical("Could not create Soundcloud data extractor!")
             logging.debug(str(e))
 
         try:
             bandcamp = DataExtractors.BandCampExtractor()
         except Exception, e:
-            logging.critical("Could not create Youtube data extractor!")
+            logging.critical("Could not create Bandcamp data extractor!")
             logging.debug(str(e))
 
         #next create a blacklist object for each
-        self.extractors = [youtube, soundcloud, bandcamp]
+        self.extractors = [bandcamp, youtube, soundcloud]
         self.extractors = [e for e in self.extractors if e]
         self.blacklists = [Blacklist.Blacklist(e, database_file) for e in self.extractors]
 
