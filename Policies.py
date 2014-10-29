@@ -39,6 +39,7 @@ class DefaultPolicy(object):
     on_blacklist = Actions.remove_post
     on_whitelist = Actions.approve_post
     Strike_Count_Max = 3 #three strikes, and you're out
+    Use_Reddit_Analytics_For_Historical_Scan = True #much more detailed history (normally)
 
     def debug(self, message, text=u""):
         logging.debug(message + u"\t" + text)
