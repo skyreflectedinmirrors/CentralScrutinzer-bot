@@ -83,7 +83,10 @@ class StrikeCounter(RedditThread.RedditThread):
                             continue
                         indexes, my_urls = zip(*temp)
                         for i, index in enumerate(indexes):
-                            add_channels.append((channels[index], domains[index], blacklist.data.channel_id(my_urls[i])[1], Blacklist.BlacklistEnums.NotFound, 0))
+                            result = blacklist.data.channel_id(my_urls[i])
+                            if not result:
+                                continue
+                            add_channels.append((channels[index], domains[index], result[1], Blacklist.BlacklistEnums.NotFound, 0))
                     if __debug__:
                         pass
                         #for i, index in enumerate(indexes):
