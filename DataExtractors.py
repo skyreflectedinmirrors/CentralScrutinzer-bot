@@ -54,7 +54,7 @@ class SoundCloudExtractor(IdentificationExtractor):
                 return (response.user['username'], response.user['permalink_url'])
             except AttributeError:
                 logging.info("Deleted or private soundcloud user requested: {}".format(url))
-                return "PRIVATE"
+                return None
         except Exception, e:
             logging.error("Could not find soundcloud username or permalink for url: {}".format(url))
             logging.debug(str(e))
@@ -95,14 +95,14 @@ class YoutubeExtractor(IdentificationExtractor):
             channel_id = response.get("items")[0].get("snippet").get("channelId")
         except IndexError:
             logging.info("Deleted or private youtube video url requested: {}".format(url))
-            return "PRIVATE"
+            return None
         except Exception, e:
             logging.error()
 
 
          #avoid asking if the ID is marked PRIVATE
         if channel_id == "PRIVATE" or channel_id == None:
-            return response
+            return None
 
         # ask for channel w/ id
         try:
@@ -116,7 +116,7 @@ class YoutubeExtractor(IdentificationExtractor):
             channel_title = response.get("items")[0].get("snippet").get("title")
         except IndexError:
             logging.info("Deleted or private youtube channel requested: {}".format(id))
-            return "PRIVATE"
+            return None
         except Exception, e:
             logging.error()
         return channel_title, u"http://www.youtube.com/channel/{}".format(channel_id)
