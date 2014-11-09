@@ -39,7 +39,7 @@ class StrikeCounter(RedditThread.RedditThread):
         """
         #scan old messages, see if deleted
         with DataBase.DataBaseWrapper(self.database_file, False) as db:
-            entries = db.get_reddit(date_added=datetime.datetime.now() - self.policy.Strike_Counter_Scan_History)
+            entries = db.get_reddit(date_added=datetime.datetime.now() - self.policy.Strike_Counter_Scan_History, return_channel_url=True, processed=0)
             if entries is None:
                 logging.warning("No reddit entries found in database...")
                 return
@@ -48,10 +48,11 @@ class StrikeCounter(RedditThread.RedditThread):
             stride = 100
             while len(entries):
                 num_loaded = min(stride, len(entries))
-                (ids, channels, domains) = zip(*entries[:num_loaded])
+                (ids, channels, domains, urls) = zip(*entries[:num_loaded])
                 ids = list(ids)
                 channels = list(channels)
                 domains = list(domains)
+                urls = list(urls)
                 loaded = Actions.get_by_ids(self.praw, ids)
                 if not loaded:
                     logging.info("Historical posts not loaded...")
@@ -65,28 +66,22 @@ class StrikeCounter(RedditThread.RedditThread):
 
                 #make sure channels exist
                 add_channels = []
-                add_ids = []
-                add_urls = []
+                indexes = []
                 unique_channels = self.__get_unique(channels, domains)
                 exists = db.channel_exists([channel[0] for channel in unique_channels])
                 for i, e in enumerate(exists):
                     if not e:
                         #pull up the url
-                        add_ids.append(unique_channels[i][1])
+                        indexes.append(unique_channels[i][1])
 
                 #resolve all the added ids
-                if add_ids:
-                    add_urls = [posts[i].url for i in add_ids]
+                if indexes:
                     for blacklist in self.blacklists:
-                        temp = [(add_ids[i], url) for i, url in enumerate(add_urls) if blacklist.check_domain(url)]
-                        if not len(temp):
+                        my_indexes = [i for i in indexes if blacklist.check_domain(urls[i])]
+                        if not len(my_indexes):
                             continue
-                        indexes, my_urls = zip(*temp)
-                        for i, index in enumerate(indexes):
-                            result = blacklist.data.channel_id(my_urls[i])
-                            if not result:
-                                continue
-                            add_channels.append((channels[index], domains[index], result[1], Blacklist.BlacklistEnums.NotFound, 0))
+                        for index in my_indexes:
+                            add_channels.append((channels[index], urls[index], domains[index]))
                     if __debug__:
                         pass
                         #for i, index in enumerate(indexes):
@@ -96,18 +91,18 @@ class StrikeCounter(RedditThread.RedditThread):
 
                 #check for deleted / (not by automod)
                 increment_posts = []
-                delete_posts = []
+                processed_posts = []
                 for i, post in enumerate(posts):
                     if (post.author is None or (post.author is not None and post.author.name == "[deleted]")) and post.link_flair_text is not None:
                         self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
                         increment_posts.append((channels[i], domains[i]))
-                        delete_posts.append(post.name)
+                        processed_posts.append(post.name)
 
                 if len(increment_posts):
                     #add strikes
                     db.add_strike(increment_posts)
                     #remove from consideration (so we don't count them over and over)
-                    db.remove_reddit(delete_posts)
+                    db.set_processed(processed_posts)
 
                 #forget old entries
                 entries = entries[num_loaded:]

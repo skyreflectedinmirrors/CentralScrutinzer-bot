@@ -235,13 +235,8 @@ class BlacklistQuery(RedditThread.RedditThread):
         url
         """
 
-        if add:
-            if len(lines) != 3:
-                self.policy.debug(u"Message unrecognized by add", text)
-                return "unknown"
-        else:
-            if len(lines) < 3 or len(lines) > 4:
-                self.policy.debug(u"Message unrecognized by remove", text)
+        if len(lines) < 3 or len(lines) > 4:
+                self.policy.debug(u"Message unrecognized by {}".format(u"add" if add else u"remove"), text)
                 return "unknown"
 
         #get black/whitelist
@@ -260,11 +255,8 @@ class BlacklistQuery(RedditThread.RedditThread):
         id = None
         #check for url
         url = self.url_regex.search(lines[2])
-        if add and url and len(url.groups()):
+        if url and len(url.groups()):
             url = lines[2][url.span()[0]:url.span()[1]]
-        elif add:
-            self.policy.debug(u"Could not url to add in message", text)
-            return "unknown"
         elif len(lines) == 3 and url and len(url.groups()):
             url = lines[2][url.span()[0]:url.span()[1]]
         elif len(lines) == 4:
@@ -285,8 +277,12 @@ class BlacklistQuery(RedditThread.RedditThread):
             if found:
                 if blacklist:
                     if add:
-                        self.policy.debug(u"Blacklisting url", url)
-                        invalid = b.add_blacklist(url)
+                        if url:
+                            self.policy.debug(u"Blacklisting url", url)
+                            invalid = b.add_blacklist_urls(url)
+                        else:
+                            self.policy.debug(u"Blacklisting channel", id)
+                            invalid = b.add_blacklist(id)
                     else:
                         if url:
                             self.policy.debug(u"Removing blacklist for url", url)
@@ -296,8 +292,12 @@ class BlacklistQuery(RedditThread.RedditThread):
                             invalid = b.remove_blacklist(id)
                 else:
                     if add:
-                        self.policy.debug(u"Whitelisting url", url)
-                        invalid = b.add_whitelist(url)
+                        if url:
+                            self.policy.debug(u"Whitelisting url", url)
+                            invalid = b.add_whitelist_urls(url)
+                        else:
+                            self.policy.debug(u"Whitelisting channel", id)
+                            invalid = b.add_whitelist(id)
                     else:
                         if url:
                             self.policy.debug(u"Removing whitelist for url", url)
@@ -375,7 +375,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                 if notFound:
                     Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject),
                                          "Sorry, I could not find " + notFound + " in your query, ask me for help for a list of valid commands and domains!")
-            else:
+            if len(matches) != 1 or result == "unknown":
                 result = "unknown"
                 Actions.send_message(self.praw, message.author.name, "RE:{}".format(message.subject),
                                      "Sorry, I did not recognize your query.  \n".format(text) + self.short_doc_string)

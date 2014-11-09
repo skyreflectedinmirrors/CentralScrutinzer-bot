@@ -24,6 +24,7 @@ class DefaultPolicy(object):
     debug_info -- a method that writes debug messages to a desired place
     """
     Historical_Scan_On_New_Database = True
+    Historical_Scan_On_Startup = True
     Scan_Sub_Period = 5 * 60 #seconds
     Pause_Period = 2 * 60 #seconds
     Posts_To_Load = 10
@@ -35,7 +36,7 @@ class DefaultPolicy(object):
     Errors_Before_Halt = 3
     Blacklist_Query_Period = 60 #seconds
     Strike_Counter_Scan_History = datetime.timedelta(days=45) #go back 45 days
-    Strike_Counter_Frequency = 3 * 60 * 60 #every three hours
+    Strike_Counter_Frequency = 12 * 60 * 60 #every 12 hrs
     on_blacklist = Actions.remove_post
     on_whitelist = Actions.approve_post
     Strike_Count_Max = 3 #three strikes, and you're out

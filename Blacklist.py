@@ -70,21 +70,49 @@ class Blacklist(object):
             return any(domain.startswith(d) or domain.endswith(d) for d in self.domains)
         return False
 
-    def add_blacklist(self, urls):
+    def add_blacklist_urls(self, urls):
         """ adds a channel to the blacklist
         :param url: a url of link corresponding to the channel
         """
         if not isinstance(urls, list):
             urls = [urls]
-        return self.__add_channels(urls, BlacklistEnums.Blacklisted)
+         #check that the domain is being added
+        my_urls,invalid_urls = self.__split_on_condition(urls, self.check_domain)
+        #get ids
+        ids = [self.data.channel_id(url) for url in my_urls]
+        valid_ids, invalid_ids = self.__split_on_condition(ids, lambda x: x and x != "PRIVATE")
+        return self.__add_channels(valid_ids, BlacklistEnums.Blacklisted)
+        return invalid_urls + invalid_ids
 
-    def add_whitelist(self, urls):
+    def add_whitelist_urls(self, urls):
         """ adds a channel to the whitelist
         :param url: a url of link corresponding to the channel
         """
         if not isinstance(urls, list):
             urls = [urls]
-        return self.__add_channels(urls, BlacklistEnums.Whitelisted)
+         #check that the domain is being added
+        my_urls,invalid_urls = self.__split_on_condition(urls, self.check_domain)
+        #get ids
+        ids = [self.data.channel_id(url) for url in my_urls]
+        valid_ids, invalid_ids = self.__split_on_condition(ids, lambda x: x and x != "PRIVATE")
+        self.__add_channels(valid_ids, BlacklistEnums.Whitelisted)
+        return invalid_urls + invalid_ids
+
+    def add_blacklist(self, ids):
+        """ adds a channel to the blacklist
+        :param ids: ids of channels
+        """
+        if not isinstance(ids, list):
+            ids = [ids]
+        return self.__add_channels(ids, BlacklistEnums.Blacklisted)
+
+    def add_whitelist(self, ids):
+        """ adds a channel to the whitelist
+        :param url: a url of link corresponding to the channel
+        """
+        if not isinstance(ids, list):
+            urls = [ids]
+        return self.__add_channels(ids, BlacklistEnums.Whitelisted)
 
     def __split_on_condition(self, seq, condition):
         a, b = [], []
@@ -92,41 +120,34 @@ class Blacklist(object):
             (a if condition(item) else b).append(item)
         return a,b
 
-    def __add_channels(self, urls, value):
+    def __add_channels(self, ids, value):
         """Adds a channel to the list
 
-        :param urls:  a list of urls corresponding to channels ot add
+        :param ids:  a list of ids corresponding to channels to add
         :param value: BLACKLIST or WHITELIST
         :return: True if successfully added, false otherwise
         """
-        #check that the domain is being added
-        my_urls,invalid_urls = self.__split_on_condition(urls, self.check_domain)
-        #get ids
-        ids = [self.data.channel_id(url) for url in my_urls]
-        valid_ids, invalid_ids = self.__split_on_condition(ids, lambda x: x and x != "PRIVATE")
+
         #transform
-        entries = [(id[0], self.domains[0]) for id in valid_ids]
+        entries = [(id[0], self.domains[0]) for id in ids]
         with DataBase.DataBaseWrapper(self.file, False) as db:
             #first find list of channels that exist already
             existant_channels = db.channel_exists(entries)
             if not existant_channels:
-                return invalid_urls + invalid_ids + valid_ids
+                return ids
             #split and populate our tuple lists based on this
             update_list = []
             add_list = []
             for i, channel_exists in enumerate(existant_channels):
-                if channel_exists:
-                    update_list.append((entries[i]))
-                else:
-                    add_list.append(entries[i] + (valid_ids[i][1], value, 0))
+                update_list.append((entries[i]))
+                if not channel_exists:
+                    add_list.append(entries[i] + (ids[i][1],))
 
+            if len(add_list):
+                db.add_channels(add_list)
             #add and update channels
             if len(update_list):
                 db.set_blacklist(update_list, value)
-            if len(add_list):
-                db.add_channels(add_list)
-        #finally add to the appropriate shortlist
-        return invalid_urls + invalid_ids
 
 
     def remove_blacklist_url(self, urls):

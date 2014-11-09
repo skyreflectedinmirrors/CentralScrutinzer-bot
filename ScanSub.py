@@ -17,6 +17,7 @@ import RedditThread
 import time
 import requests
 import json
+import traceback
 
 class scan_result:
     FoundOld, DidNotFind, Error = range(3)
@@ -58,14 +59,25 @@ class SubScanner(RedditThread.RedditThread):
 
         #check for empty database
         self.file = self.owner.database_file
-        scan = False
-        with DataBase.DataBaseWrapper(self.file, False) as db:
-            if db.check_reddit_empty() and db.check_channel_empty():
-                if self.policy.Historical_Scan_On_New_Database:
+        scan = self.policy.Historical_Scan_On_Startup
+        goto = None
+        if scan:
+            with DataBase.DataBaseWrapper(self.file, False) as db:
+                goto = db.newest_reddit_entries()
+                if goto:
+                    goto = list(goto[0])
+                goto = Actions.get_by_ids(self.praw, goto)
+                if goto:
+                    goto = goto.next()
+                if goto:
+                    goto = datetime.datetime.fromtimestamp(goto.created_utc)
+        if not scan and self.policy.Historical_Scan_On_New_Database:
+            with DataBase.DataBaseWrapper(self.file, False) as db:
+                if db.check_reddit_empty() and db.check_channel_empty():
                     scan = True
 
         if scan:
-            result = self.historical_scan()
+            result = self.historical_scan(goto)
             if result == scan_result.Error:
                 logging.warning("Error on historical scan, proceeding without pre-populated database")
 
@@ -74,8 +86,8 @@ class SubScanner(RedditThread.RedditThread):
             if db.check_reddit_empty():
                 self.last_seen = 0
             else:
-                self.last_seen = db.newest_reddit_entries().fetchone()[0]
-                self.last_seen = Actions.get_by_ids(self.praw, [self.last_seen])
+                self.last_seen = list(db.newest_reddit_entries()[0])
+                self.last_seen = Actions.get_by_ids(self.praw, self.last_seen)
                 if self.last_seen is not None:
                     self.last_seen = self.last_seen.next().created_utc
                 else:
@@ -109,10 +121,12 @@ class SubScanner(RedditThread.RedditThread):
             if not len(temp):
                 continue
             indexes, my_urls = zip(*temp)
-            channel_ids = [blacklist.data.channel_id(url) for url in my_urls]
-            if len(channel_ids) == 1 and channel_ids[0] == None:
-                continue #avoid bug w/ trying to zip an empty list
-            indexes, channel_ids = zip(*[(indexes[i], channel[0]) for i, channel in enumerate(channel_ids) if channel is not None])
+            channel_data = [blacklist.data.channel_id(url) for url in my_urls]
+            temp = [(indexes[i], channel[0], channel[1]) for i, channel in enumerate(channel_data) if channel is not None]
+            if not len(temp):
+                #avoid zipping an empty list
+                continue
+            indexes, channel_ids, channel_urls = zip(*temp)
             check = blacklist.check_blacklist(ids=channel_ids)
             for i, enum in enumerate(check):
                 index = indexes[i]
@@ -124,7 +138,7 @@ class SubScanner(RedditThread.RedditThread):
                     self.policy.info_url(u"Whitelist action taken on post", post_list[index][1])
                     self.policy.on_whitelist(post_list[index][3])
                 #if whitelisted or not found, store reddit_record
-                added_posts.append((post_list[index][1], channel_ids[i], blacklist.domains[0], datetime.datetime.fromtimestamp(post_list[index][0])))
+                added_posts.append((post_list[index][1], channel_ids[i], channel_urls[i], blacklist.domains[0], datetime.datetime.fromtimestamp(post_list[index][0])))
 
         #finally add our new posts to the reddit_record
         with DataBase.DataBaseWrapper(self.file, False) as db:
@@ -134,22 +148,26 @@ class SubScanner(RedditThread.RedditThread):
                     #self.policy.info_url(u"Adding post {} to reddit_record".format(post[0]), post[0])
             db.add_reddit(added_posts)
 
-    def historical_scan(self):
+    def historical_scan(self, goto=None):
         """Scans the sub with more intensive detection of previously found reddit posts
         Allows for mass processing of past posts
         """
 
         last_id = None
-        start = datetime.datetime.now()
+        if not goto:
+            goto = datetime.datetime.now() - self.policy.Strike_Counter_Scan_History
         last_seen = datetime.datetime.now()
         if self.policy.Use_Reddit_Analytics_For_Historical_Scan:
-            while last_seen > start - self.policy.Strike_Counter_Scan_History:
+            while last_seen > goto:
                 if last_id:
                     self.RA_params["after"] = last_id
                 try:
                     data = requests.get("http://api.redditanalytics.com/getPosts", params=self.RA_params, headers=self.RA_headers)
                     json_data = json.loads(data.content)
                     ids = [post["name"] for post in json_data["data"]]
+                    with DataBase.DataBaseWrapper(self.file) as db:
+                        exists = db.reddit_exists(ids)
+                    ids = [ids[i] for i in range(len(ids)) if not exists[i]]
                     posts = Actions.get_by_ids(self.praw, ids)
                     post_data = [(post.created_utc, post.name, post.url, post) for post in posts if not post.is_self]
                     self.__process_post_list(post_data)
@@ -157,6 +175,8 @@ class SubScanner(RedditThread.RedditThread):
                     last_seen = datetime.datetime.fromtimestamp(json_data["metadata"]["oldest_date"])
                 except Exception, e:
                     logging.error(str(e))
+                    if __debug__:
+                        logging.error(traceback.format_exc())
                     return scan_result.Error
         else:
             posts = Actions.get_posts(self.sub, 900)
@@ -260,14 +280,14 @@ class SubScanner(RedditThread.RedditThread):
                     self.last_seen = 0
                 else:
                     save = self.last_seen
-                    self.last_seen = db.newest_reddit_entries().fetchone()[0]
-                    self.last_seen = Actions.get_by_ids(self.praw, [self.last_seen])
+                    self.last_seen = list(db.newest_reddit_entries()[0])
+                    self.last_seen = Actions.get_by_ids(self.praw, self.last_seen)
                     if self.last_seen is not None:
                         self.last_seen = self.last_seen.next().created_utc
                     else:
                         self.last_seen = 0
-                    if self.last_seen != save:
-                        self.policy.info(u"Sub Scan last_seen updated to {}".format(self.last_seen))
+                    #if self.last_seen != save:
+                    #    self.policy.info(u"Sub Scan last_seen updated to {}".format(self.last_seen))
 
             #and wait
             time.sleep(self.policy.Scan_Sub_Period)

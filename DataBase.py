@@ -63,8 +63,10 @@ class DataBaseWrapper(object):
                     self.cursor.execute('''create table if not exists reddit_record
                     (short_url text primary key,
                     channel_id text,
+                    channel_url text,
                     domain text,
-                    date_added timestamp)''')
+                    processed integer default 0,
+                    date_added timestamp default current_timestamp)''')
                     try:
                         self.cursor.execute('create index channel on reddit_record(channel_id, domain)')
                     except sqlite3.OperationalError, e:
@@ -91,7 +93,7 @@ class DataBaseWrapper(object):
 
             def newest_reddit_entries(self, limit=1):
                 try:
-                    return self.cursor.execute("select short_url from reddit_record order by date_added desc limit ?", (limit,))
+                    return self.cursor.execute("select short_url from reddit_record order by date_added desc limit ?", (limit,)).fetchall()
                 except Exception, e:
                     logging.error("Could not select newest reddit entries")
                     logging.debug(str(e))
@@ -126,23 +128,23 @@ class DataBaseWrapper(object):
             def add_reddit(self, reddit_entries):
                 """adds the supplied reddit entries to the reddit_record
 
-                :param reddit_entries: a list of tuples consisting of (short_url, channel_id, domain, date_added)
+                :param reddit_entries: a list of tuples consisting of (short_url, channel_id, channel_url, domain)
                 :return:
                 """
                 try:
                     if not isinstance(reddit_entries, list):
                         reddit_entries = list(reddit_entries)
                     reddit_entries = [(e,) if not isinstance(e, tuple) else e for e in reddit_entries]
-                    self.cursor.executemany('''insert into reddit_record values (?,?,?,?)''', reddit_entries)
+                    self.cursor.executemany('''insert into reddit_record (short_url, channel_id, channel_url, domain, date_added) values(?, ?, ?, ?, ?)''', reddit_entries)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Could not add reddit entries to database")
                     logging.debug(str(e))
 
-            def get_reddit(self, channel_id=None, domain=None, date_added=None, return_channel_id=True, return_domain=True, return_dateadded=False):
+            def get_reddit(self, channel_id=None, domain=None, date_added=None, processed=None, return_channel_id=True, return_domain=True, return_channel_url=False, return_dateadded=False):
                 """returns a list of reddit entries matching the provided search modifiers (i.e. channel_id, domain, date_added)
 
-                :returns: a list of tuples of the form (short_url, channel_id*, domain*, date_added* (*if specified))
+                :returns: a list of tuples of the form (short_url, channel_id*, channel_url*, domain*, date_added* (*if specified))
                 """
                 query = 'select short_url'
                 arglist = []
@@ -150,22 +152,29 @@ class DataBaseWrapper(object):
                     query += ', channel_id'
                 if return_domain:
                     query += ', domain'
+                if return_channel_url:
+                    query += ', channel_url'
                 if return_dateadded:
                     query += ', date_added'
                 query += ' from reddit_record where '
-                if channel_id:
+                if channel_id is not None:
                     query += 'channel_id = ?'
                     arglist.append(channel_id)
-                if domain:
+                if domain is not None:
                     if len(arglist):
                         query += ' and '
                     query += 'domain_eq(domain, ?)'
                     arglist.append(domain)
-                if date_added:
+                if date_added is not None:
                     if len(arglist):
                         query += ' and '
                     query += ' date_added > ?'
                     arglist.append(date_added)
+                if processed is not None:
+                    if len(arglist):
+                        query += ' and '
+                    query += ' processed == '
+                    arglist.append(processed)
                 if not len(arglist):
                     return None
                 try:
@@ -206,10 +215,10 @@ class DataBaseWrapper(object):
             def add_channels(self, channel_entries):
                 """Adds channels to the channel_record
 
-                :param channel_entries: a list of tuples consisting of (channel_id, domain, channel_url, blacklist, strike_count)
+                :param channel_entries: a list of tuples consisting of (channel_id, channel_url, domain)
                 """
                 try:
-                    self.cursor.executemany('''insert into channel_record values (?,?,?,?,?)''', channel_entries)
+                    self.cursor.executemany('''insert into channel_record (channel_id, channel_url, domain) values(?, ?, ?)''', channel_entries)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Could not add channels to database")
@@ -353,6 +362,19 @@ class DataBaseWrapper(object):
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on set_strikes.")
+                    logging.debug(str(e))
+
+            def set_processed(self, post_list):
+                """Sets the given channel entries processed to 1
+
+                :param channel_entries: a list of short_urls
+                """
+                try:
+                    tupled = [(val,) for val in post_list]
+                    self.cursor.executemany('update reddit_record set processed = 1 where short_url = ?', tupled)
+                    self.db.commit()
+                except sqlite3.Error, e:
+                    logging.error("Error on set_processed.")
                     logging.debug(str(e))
 
 
