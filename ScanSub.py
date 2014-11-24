@@ -71,13 +71,20 @@ class SubScanner(RedditThread.RedditThread):
                     goto = goto.next()
                 if goto:
                     goto = datetime.datetime.fromtimestamp(goto.created_utc)
-        if not scan and self.policy.Historical_Scan_On_New_Database:
+        if self.policy.Historical_Scan_On_New_Database:
             with DataBase.DataBaseWrapper(self.file, False) as db:
                 if db.check_reddit_empty() and db.check_channel_empty():
                     scan = True
+                    goto = datetime.datetime.now() - self.policy.Strike_Counter_Scan_History
 
         if scan:
-            result = self.historical_scan(goto)
+            result = scan_result.Error
+            count = 0
+            while result == scan_result.Error and count < 5:
+                result = self.historical_scan(goto)
+                if result == scan_result.Error:
+                    count += 1
+                    time.sleep(5 * 60)
             if result == scan_result.Error:
                 logging.warning("Error on historical scan, proceeding without pre-populated database")
 
@@ -122,11 +129,11 @@ class SubScanner(RedditThread.RedditThread):
                 continue
             indexes, my_urls = zip(*temp)
             channel_data = [blacklist.data.channel_id(url) for url in my_urls]
-            temp = [(indexes[i], channel[0], channel[1]) for i, channel in enumerate(channel_data) if channel is not None]
+            temp = [(indexes[i], channel[0]) for i, channel in enumerate(channel_data) if channel is not None]
             if not len(temp):
                 #avoid zipping an empty list
                 continue
-            indexes, channel_ids, channel_urls = zip(*temp)
+            indexes, channel_ids = zip(*temp)
             check = blacklist.check_blacklist(ids=channel_ids)
             for i, enum in enumerate(check):
                 index = indexes[i]
@@ -138,7 +145,7 @@ class SubScanner(RedditThread.RedditThread):
                     self.policy.info_url(u"Whitelist action taken on post", post_list[index][1])
                     self.policy.on_whitelist(post_list[index][3])
                 #if whitelisted or not found, store reddit_record
-                added_posts.append((post_list[index][1], channel_ids[i], channel_urls[i], blacklist.domains[0], datetime.datetime.fromtimestamp(post_list[index][0])))
+                added_posts.append((post_list[index][1], channel_ids[i], blacklist.domains[0], datetime.datetime.fromtimestamp(post_list[index][0])))
 
         #finally add our new posts to the reddit_record
         with DataBase.DataBaseWrapper(self.file, False) as db:
@@ -168,6 +175,8 @@ class SubScanner(RedditThread.RedditThread):
                     with DataBase.DataBaseWrapper(self.file) as db:
                         exists = db.reddit_exists(ids)
                     ids = [ids[i] for i in range(len(ids)) if not exists[i]]
+                    if not len(ids):
+                        continue
                     posts = Actions.get_by_ids(self.praw, ids)
                     post_data = [(post.created_utc, post.name, post.url, post) for post in posts if not post.is_self]
                     self.__process_post_list(post_data)

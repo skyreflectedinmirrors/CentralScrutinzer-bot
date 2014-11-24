@@ -8,6 +8,7 @@ import logging
 import Blacklist
 import multiprocessing
 from collections import defaultdict
+import traceback
 
 class StrikeCounter(RedditThread.RedditThread):
     """
@@ -39,7 +40,7 @@ class StrikeCounter(RedditThread.RedditThread):
         """
         #scan old messages, see if deleted
         with DataBase.DataBaseWrapper(self.database_file, False) as db:
-            entries = db.get_reddit(date_added=datetime.datetime.now() - self.policy.Strike_Counter_Scan_History, return_channel_url=True, processed=0)
+            entries = db.get_reddit(date_added=datetime.datetime.now() - self.policy.Strike_Counter_Scan_History, processed=0)
             if entries is None:
                 logging.warning("No reddit entries found in database...")
                 return
@@ -48,11 +49,10 @@ class StrikeCounter(RedditThread.RedditThread):
             stride = 100
             while len(entries):
                 num_loaded = min(stride, len(entries))
-                (ids, channels, domains, urls) = zip(*entries[:num_loaded])
+                (ids, channels, domains) = zip(*entries[:num_loaded])
                 ids = list(ids)
                 channels = list(channels)
                 domains = list(domains)
-                urls = list(urls)
                 loaded = Actions.get_by_ids(self.praw, ids)
                 if not loaded:
                     logging.info("Historical posts not loaded...")
@@ -77,30 +77,34 @@ class StrikeCounter(RedditThread.RedditThread):
                 #resolve all the added ids
                 if indexes:
                     for blacklist in self.blacklists:
-                        my_indexes = [i for i in indexes if blacklist.check_domain(urls[i])]
+                        my_indexes = [i for i in indexes if blacklist.check_domain(domains[i])]
                         if not len(my_indexes):
                             continue
                         for index in my_indexes:
-                            add_channels.append((channels[index], urls[index], domains[index]))
+                            add_channels.append((channels[index], domains[index]))
                     if __debug__:
                         pass
                         #for i, index in enumerate(indexes):
                             #self.policy.info(u"Adding {} to channel_record".format(channels[index]), u"channel={}, domain = {}".format(channels[index], domains[index]))
-                    db.add_channels(add_channels)
+                    if not db.add_channels(add_channels):
+                        continue #if there was an error adding the channels, don't mark as processed
 
 
                 #check for deleted / (not by automod)
-                increment_posts = []
+                increment_posts = {}
                 processed_posts = []
                 for i, post in enumerate(posts):
                     if (post.author is None or (post.author is not None and post.author.name == "[deleted]")) and post.link_flair_text is not None:
                         self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
-                        increment_posts.append((channels[i], domains[i]))
+                        if not channels[i] in increment_posts:
+                            increment_posts[channels[i]] = (1, channel[i], domains[i])
+                        else:
+                            increment_posts[channels[i]] = (increment_posts[channels[i]][2] + 1, channel[i], domains[i])
                         processed_posts.append(post.name)
 
                 if len(increment_posts):
                     #add strikes
-                    db.add_strike(increment_posts)
+                    db.add_strike([val for key, val in enumerate(increment_posts)])
                     #remove from consideration (so we don't count them over and over)
                     db.set_processed(processed_posts)
 
@@ -108,12 +112,12 @@ class StrikeCounter(RedditThread.RedditThread):
                 entries = entries[num_loaded:]
 
             #check for rule breaking channels
-            channels = db.get_channels(strike_count=self.policy.Strike_Count_Max, blacklist_not_equal=Blacklist.BlacklistEnums.Blacklisted)
+            channels = db.get_channels(strike_count=self.policy.Strike_Count_Max, blacklist=Blacklist.BlacklistEnums.NotFound)
 
             if channels and len(channels):
                 if __debug__:
                     for i, channel in enumerate(channels):
-                        self.policy.info(u"Adding channel to blacklist", u"channel={}, domain = {}".format(channel, domains[i]))
+                        self.policy.info(u"Adding channel to blacklist", u"channel={}, domain = {}".format(channel[0], channel[1]))
                 #add channels to blacklist
                 db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted)
 
@@ -131,6 +135,7 @@ class StrikeCounter(RedditThread.RedditThread):
             except Exception, e:
                 logging.error("Exception occured while scanning old reddit posts")
                 logging.debug(str(e))
+                logging.debug(traceback.format_exc())
                 self.log_error()
 
             time.sleep(self.policy.Strike_Counter_Frequency)
