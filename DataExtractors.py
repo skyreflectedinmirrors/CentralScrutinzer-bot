@@ -54,10 +54,10 @@ class SoundCloudExtractor(IdentificationExtractor):
             try:
                 return (response.user['username'], response.user['permalink_url'])
             except AttributeError:
-                logging.info("Deleted or private soundcloud user requested: {}".format(url))
+                logging.info(u"Deleted or private soundcloud user requested: {}".format(url))
                 return None
         except Exception, e:
-            logging.error("Could not find soundcloud username or permalink for url: {}".format(url))
+            logging.error(u"Could not find soundcloud username or permalink for url: {}".format(url))
             logging.debug(str(e))
 
 
@@ -95,7 +95,7 @@ class YoutubeExtractor(IdentificationExtractor):
             #should be the first id in the list
             channel_id = response.get("items")[0].get("snippet").get("channelId")
         except IndexError:
-            logging.info("Deleted or private youtube video url requested: {}".format(url))
+            logging.info(u"Deleted or private youtube video url requested: {}".format(url))
             return None
         except Exception, e:
             logging.error()
@@ -116,7 +116,7 @@ class YoutubeExtractor(IdentificationExtractor):
             #should be the first id in the list
             channel_title = response.get("items")[0].get("snippet").get("title")
         except IndexError:
-            logging.info("Deleted or private youtube channel requested: {}".format(id))
+            logging.info(u"Deleted or private youtube channel requested: {}".format(id))
             return None
         except Exception, e:
             logging.error()
@@ -154,5 +154,5 @@ class BandCampExtractor(IdentificationExtractor):
         try:
             return domain, url[:url.index(domain)] + domain
         except:
-            logging.error("Bad domain extracted from {}".format(url))
+            logging.error(u"Bad domain extracted from {}".format(url))
             return None
