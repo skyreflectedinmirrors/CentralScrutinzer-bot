@@ -195,7 +195,7 @@ def send_message(reddit, user, subject, message):
 
 def xpost(post, other_sub, comment):
     try:
-        return make_post_url(other_sub, title=post.title + "//"  + comment, url="http://redd.it/{}".format(post.id))
+        return make_post_url(other_sub, title=post.title + "//"  + comment, url=u"http://redd.it/{}".format(post.id))
     except Exception, e:
         logging.error("Post " + str(post.id) + " could not be cross posted")
         logging.debug(str(e))
