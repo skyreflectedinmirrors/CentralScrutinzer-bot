@@ -124,7 +124,8 @@ class Blacklist(object):
             add_list = []
             for i, channel_exists in enumerate(existant_channels):
                 update_list.append(entries[i])
-                if not channel_exists:
+                #add if not existant, and no duplicates
+                if not channel_exists and not entries[i] in add_list:
                     add_list.append(entries[i])
 
             if len(add_list):
@@ -190,6 +191,9 @@ class Blacklist(object):
             existant_channels = db.channel_exists(entries)
             update_list = []
             for i, channel_exists in enumerate(existant_channels):
+                #update if channel exists and not a duplicate
+                if entries[i] in update_list:
+                    continue
                 if channel_exists:
                     update_list.append(entries[i])
                     valid_ids.append(ids[i])
