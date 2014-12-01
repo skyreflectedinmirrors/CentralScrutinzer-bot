@@ -39,7 +39,7 @@ class DataBaseWrapper(object):
                 """Creates the post table if it does not exist already"""
                 try:
                     self.cursor.execute('''create table if not exists channel_record
-                    (channel_id text collate nocase,
+                    (channel_id text,
                     domain text,
                     blacklist integer default 0,
                     strike_count integer default 0,
@@ -61,7 +61,7 @@ class DataBaseWrapper(object):
                 try:
                     self.cursor.execute('''create table if not exists reddit_record
                     (short_url text primary key,
-                    channel_id text collate nocase,
+                    channel_id text,
                     domain text,
                     processed integer default 0,
                     date_added timestamp default current_timestamp)''')
@@ -378,7 +378,7 @@ class DataBaseWrapper(object):
                                             ' channel_id = ? and domain_eq(domain, ?)', channel_entries)
                     self.db.commit()
                 except sqlite3.Error, e:
-                    logging.error("Error on set_strikes.")
+                    logging.error("Error on add_strikes.")
                     logging.debug(str(e))
 
             def set_processed(self, post_list):

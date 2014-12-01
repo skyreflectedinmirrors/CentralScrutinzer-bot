@@ -292,27 +292,27 @@ class BlacklistQuery(RedditThread.RedditThread):
         if blacklist:
             if add:
                 if url_list:
-                    invalid = invalid + b.add_blacklist_urls(entries)
+                    invalid += b.add_blacklist_urls(entries)
                 else:
-                    invalid = invalid + b.add_blacklist(entries)
+                    invalid += b.add_blacklist(entries)
             else:
                 if url_list:
-                    invalid = invalid + b.remove_blacklist_urls(entries)
+                    invalid += b.remove_blacklist_urls(entries)
                 else:
-                    invalid = invalid +  b.add_blacklist(entries)
+                    invalid += b.add_blacklist(entries)
         else:
             if add:
                 if url_list:
-                    invalid = b.add_whitelist_urls(entries)
+                    invalid += b.add_whitelist_urls(entries)
                 else:
-                    invalid = b.add_whitelist(entries)
+                    invalid += b.add_whitelist(entries)
             else:
                 if url_list:
-                    invalid = b.remove_whitelist_urls(entries)
+                    invalid += b.remove_whitelist_urls(entries)
                 else:
-                    invalid = b.add_whitelist(entries)
+                    invalid += b.add_whitelist(entries)
 
-        if invalid is not None:
+        if invalid is not None and len(invalid):
             retstr = u"Invalid entries detected:  \n"
             if url_list:
                 retstr += u"  \n".join(invalid)
