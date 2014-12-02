@@ -25,11 +25,12 @@ class StrikeCounter(RedditThread.RedditThread):
         self.blacklists = self.owner.blacklists
 
     def __get_unique(self, seq, seq2):
-        tally = defaultdict(list)
+        tally = []
         for i,item in enumerate(seq):
-            tally[(item, seq2[i])].append(i)
-        return [(key, locs[0]) for key, locs in tally.items()
-                                if len(locs) == 1]
+            tup = (seq[i], seq2[i])
+            if not any(val == tup for val in tally):
+                tally.append(tup)
+        return [val for val in tally]
 
     def scan(self):
         """
@@ -66,26 +67,15 @@ class StrikeCounter(RedditThread.RedditThread):
 
                 #make sure channels exist
                 add_channels = []
-                indexes = []
                 unique_channels = self.__get_unique(channels, domains)
-                exists = db.channel_exists([channel[0] for channel in unique_channels])
+                exists = db.channel_exists([channel for channel in unique_channels])
                 for i, e in enumerate(exists):
                     if not e:
                         #pull up the url
-                        indexes.append(unique_channels[i][1])
+                        add_channels.append(unique_channels[i])
 
                 #resolve all the added ids
-                if indexes:
-                    for blacklist in self.blacklists:
-                        my_indexes = [i for i in indexes if blacklist.check_domain(domains[i])]
-                        if not len(my_indexes):
-                            continue
-                        for index in my_indexes:
-                            add_channels.append((channels[index], domains[index]))
-                    if __debug__:
-                        pass
-                        #for i, index in enumerate(indexes):
-                            #self.policy.info(u"Adding {} to channel_record".format(channels[index]), u"channel={}, domain = {}".format(channels[index], domains[index]))
+                if add_channels:
                     if not db.add_channels(add_channels):
                         continue #if there was an error adding the channels, don't mark as processed
 
@@ -95,18 +85,19 @@ class StrikeCounter(RedditThread.RedditThread):
                 processed_posts = []
                 for i, post in enumerate(posts):
                     if (post.author is None or (post.author is not None and post.author.name == "[deleted]")) and post.link_flair_text is not None:
-                        self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
-                        if not channels[i] in increment_posts:
-                            increment_posts[channels[i]] = (1, channel[i], domains[i])
+                        #self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
+                        if not (channels[i], domains[i]) in increment_posts:
+                            increment_posts[(channels[i], domains[i])] = 1
                         else:
-                            increment_posts[channels[i]] = (increment_posts[channels[i]][2] + 1, channel[i], domains[i])
+                            increment_posts[(channels[i], domains[i])] += 1
                         processed_posts.append(post.name)
 
                 if len(increment_posts):
                     #add strikes
-                    db.add_strike([val for key, val in enumerate(increment_posts)])
+                    db.add_strike([(increment_posts[key],) + key for key in increment_posts])
                     #remove from consideration (so we don't count them over and over)
                     db.set_processed(processed_posts)
+
 
                 #forget old entries
                 entries = entries[num_loaded:]

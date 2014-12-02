@@ -374,8 +374,8 @@ class DataBaseWrapper(object):
                 :param channel_entries: a list of tuples of the form (add_strikes, channel_id, domain)
                 """
                 try:
-                    self.cursor.executemany('update channel_record set strike_count = strike_count + ? where'
-                                            ' channel_id = ? and domain_eq(domain, ?)', channel_entries)
+                    self.cursor.executemany('update channel_record set strike_count = strike_count + ? where \
+                                             channel_id = ? and domain_eq(domain, ?)', channel_entries)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on add_strikes.")
