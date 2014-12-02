@@ -67,12 +67,11 @@ class StrikeCounter(RedditThread.RedditThread):
 
                 #make sure channels exist
                 add_channels = []
-                unique_channels = self.__get_unique(channels, domains)
-                exists = db.channel_exists([channel for channel in unique_channels])
+                exists = db.channel_exists([(channel, domains[i]) for i, channel in enumerate(channels)])
                 for i, e in enumerate(exists):
                     if not e:
                         #pull up the url
-                        add_channels.append(unique_channels[i])
+                        add_channels.append((channels[i], domains[i]))
 
                 #resolve all the added ids
                 if add_channels:

@@ -209,12 +209,16 @@ class DataBaseWrapper(object):
                     logging.debug(str(e))
 
             def add_channels(self, channel_entries):
-                """Adds channels to the channel_record
+                """Adds channels to the channel_record, entries need not be unique
 
                 :param channel_entries: a list of tuples consisting of (channel_id, domain)
                 """
                 try:
-                    self.cursor.executemany('''insert into channel_record (channel_id, domain) values(?, ?)''', channel_entries)
+                    unique = []
+                    for entry in channel_entries:
+                        if not entry in unique:
+                            unique.append(entry)
+                    self.cursor.executemany('''insert into channel_record (channel_id, domain) values(?, ?)''', unique)
                     self.db.commit()
                     return True
                 except sqlite3.Error, e:
