@@ -8,6 +8,7 @@ import StrikeCounter
 import atexit
 import sys
 import time
+import utilitymethods
 
 class CentralScrutinizer(object):
     """
@@ -17,6 +18,11 @@ class CentralScrutinizer(object):
         self.credentials = credentials
         self.policy = policy
         self.database_file = database_file
+
+        #test that praw-multiprocess is started
+        test_praw = utilitymethods.create_multiprocess_praw(self.credentials)
+        if test_praw is None:
+            raise Exception("Cannot connect to praw-multiprocess, ensure it is started and check configuration.")
 
         Log = logging.getLogger()
         if debug:
