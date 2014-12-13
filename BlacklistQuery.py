@@ -239,7 +239,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             return False
 
         lines = [l for l in self.line_splitter.split(text) if len(l)]
-        matches = [self.quote_match(l) for l in lines]
+        matches = [self.quote_match.match(l) for l in lines]
         matches = [m for m in matches if m]
         if len(matches):
             url_list = False
