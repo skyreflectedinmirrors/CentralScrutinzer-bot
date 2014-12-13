@@ -291,7 +291,15 @@ class SubScanner(RedditThread.RedditThread):
                     self.last_seen = list(db.newest_reddit_entries()[0])
                     self.last_seen = Actions.get_by_ids(self.praw, self.last_seen)
                     if self.last_seen is not None:
-                        self.last_seen = self.last_seen.next().created_utc
+                        try:
+                            self.last_seen = self.last_seen.next().created_utc
+                        except socket.error, e:
+                            if e.errno == 10061:
+                                logging.critical("praw-multiprocess not started!")
+                            else:
+                                logging.error(str(e))
+                            if not result == scan_result.Error:
+                                self.log_error()
                     else:
                         self.last_seen = 0
                     #if self.last_seen != save:
