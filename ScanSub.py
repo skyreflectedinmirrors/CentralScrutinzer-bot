@@ -140,11 +140,10 @@ class SubScanner(RedditThread.RedditThread):
                 if enum == BlacklistEnums.Blacklisted:
                     self.policy.info_url(u"Blacklist action taken on post", post_list[index][1])
                     self.policy.on_blacklist(post_list[index][3])
-                    continue
                 if enum == BlacklistEnums.Whitelisted:
                     self.policy.info_url(u"Whitelist action taken on post", post_list[index][1])
                     self.policy.on_whitelist(post_list[index][3])
-                #if whitelisted or not found, store reddit_record
+                #add post to record
                 added_posts.append((post_list[index][1], channel_ids[i], blacklist.domains[0], datetime.datetime.fromtimestamp(post_list[index][0])))
 
         #finally add our new posts to the reddit_record
