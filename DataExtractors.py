@@ -67,9 +67,10 @@ class YoutubeExtractor(IdentificationExtractor):
         self.base_url = 'https://www.googleapis.com/youtube/v3'
         self.videos_url = '/videos/'
         self.key = key
-        self.regex = regex = re.compile(
+        self.regex = re.compile(
             r'''(?<=(?:v|i)=)[a-zA-Z0-9-]+(?=&)|(?<=(?:v|i)\/)[^&\n]+|(?<=embed\/)[^"&\n]+|'''
             r'''(?<=(?:v|i)=)[^&\n]+|(?<=youtu.be\/)[^&\n]+''', re.I)
+        self.channel_regex = re.compile(r"(?:(?:http|https):\/\/|)(?:www\.)?youtube\.com\/(?:channel\/|user\/)([a-zA-Z0-9_-]{1,})")
         self.youtube = build('youtube', 'v3', developerKey=self.key)
 
     #returns the channel id from a url
@@ -85,31 +86,33 @@ class YoutubeExtractor(IdentificationExtractor):
 
         #query server
         response = None
+        channel_id = None
         try:
             response = self.youtube.videos().list(part='snippet', id=id).execute()
         except apiclient.errors.HttpError:
-            logging.error("Bad request for youtube video id " + str(id))
-            return None
+            #maybe it's a channel:
+            pass
+            #logging.error("Bad request for youtube id " + str(id))
+            #return None
 
         try:
-            #should be the first id in the list
             channel_id = response.get("items")[0].get("snippet").get("channelId")
         except IndexError:
-            logging.info(u"Deleted or private youtube video url requested: {}".format(url))
-            return None
+            #try it as a channel
+            channel_id = id
         except Exception, e:
-            logging.error()
+            logging.error("Unknown error detecting channelId for youtube url " + str(url))
 
 
          #avoid asking if the ID is marked PRIVATE
-        if channel_id == "PRIVATE" or channel_id == None:
+        if channel_id == "PRIVATE" or channel_id is None:
             return None
 
         # ask for channel w/ id
         try:
             response = self.youtube.channels().list(part='snippet', id=channel_id).execute()
         except apiclient.errors.HttpError:
-            logging.error("Bad request for youtube video id " + str(channel_id))
+            logging.error("Bad request for youtube channel id " + str(channel_id))
             return None
 
         try:
@@ -128,6 +131,12 @@ class YoutubeExtractor(IdentificationExtractor):
         # regex via: http://stackoverflow.com/questions/3392993/php-regex-to-get-youtube-video-id
 
         yt_id = self.regex.findall(
+            url.replace('%3D', '=').replace('%26', '&').replace('%2F', '?').replace('&amp;', '&'))
+
+        if not yt_id:
+            #try parsing it as a channel
+            #regex via: http://stackoverflow.com/questions/25413707/regex-for-youtube-channel-url
+            yt_id = self.channel_regex.findall(
             url.replace('%3D', '=').replace('%26', '&').replace('%2F', '?').replace('&amp;', '&'))
 
         if yt_id:
