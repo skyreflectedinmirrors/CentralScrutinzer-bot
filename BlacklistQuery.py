@@ -127,7 +127,7 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         self.line_splitter = re.compile("  |\n")
         self.quote_splitter = re.compile("\"([^\"]+)\",")
-        self.quote_extractor = re.compile("^\"([^\"]+)\"$")
+        self.quote_match = re.compile("^(\"[^\"]+\",\\s*)*\"[^\"]+\"$")
 
         self.message_cache = []
 
@@ -239,20 +239,19 @@ class BlacklistQuery(RedditThread.RedditThread):
             return False
 
         lines = [l for l in self.line_splitter.split(text) if len(l)]
-        check = lines[0]
+        matches = [self.quote_match(l) for l in lines]
+        matches = [m for m in matches if m]
+        if len(matches):
+            url_list = False
+        else:
+            url_list = True
+
         blist = None
-        url_list = None
-        #test the first line to see if it's a url, or just a domain
+        #test the first line to get appropriate blacklist
         for b in self.blacklists:
-            if b.check_domain(check):
+            if b.check_domain(lines[0]):
                 #store b
                 blist = b
-                #found correct blacklist, but could still be just the domain, try to resolve
-                result = b.data.channel_id(check)
-                if result is not None:
-                    url_list = True
-                else:
-                    url_list = False
                 break
 
         #now check that we have a blacklist and url_list defined
@@ -262,11 +261,11 @@ class BlacklistQuery(RedditThread.RedditThread):
             return False
 
         #check that if we do not have a url list, we indeed have a domain and other entries to add
-        if url_list and len(lines) == 1:
+        if not url_list and len(lines) == 1:
             Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white",\
                 u"addition" if add else u"removal"), u"Invalid format detected, must have at least one channel id to {}\
                 from {}list for domain {}".format(u"add" if add else u"remove", u"black" if blacklist else u"white",\
-                check))
+                self.lines[0]))
             return False
 
         entries = lines if url_list else lines[1:]
@@ -279,13 +278,13 @@ class BlacklistQuery(RedditThread.RedditThread):
                 if val:
                     real_entries.extend([v.strip() for v in val if v and len(v.strip())])
                 else:
-                    val = self.quote_extractor.match(entry)
+                    val = self.quote_splitter.match(entry)
                     if not val:
                         invalid.append(entry)
                     else:
                         real_entries.extend(val.group(1))
-                if self.quote_extractor.match(real_entries[-1]):
-                    real_entries[-1] = self.quote_extractor.match(real_entries[-1]).group(1)
+                if self.quote_splitter.match(real_entries[-1]):
+                    real_entries[-1] = self.quote_splitter.split(real_entries[-1]).group(1)
             #copy back
             entries = real_entries[:]
 
@@ -317,7 +316,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             if url_list:
                 retstr += u"  \n".join(invalid)
             else:
-                retstr += u"  \n".join([u"id = {}, domain = {}  \n".format(id, check) for id in invalid])
+                retstr += u"  \n".join([u"id = {}, domain = {}  \n".format(id, self.lines[0]) for id in invalid])
             self.policy.debug(u"Invalid entry detected for message", retstr)
             Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white",\
                 u"addition" if add else u"removal"), retstr)
