@@ -104,6 +104,15 @@ class Blacklist(object):
             (a if condition(item) else b).append(item)
         return a,b
 
+    def __split_on_condition_altlist(self, seq, condition, altlist):
+        a, b = [], []
+        for i, item in enumerate(seq):
+            if condition(item):
+                a.append(item)
+            else:
+                b.append(altlist[i])
+        return a,b
+
     def __add_channels(self, ids, value):
         """Adds a channel to the list
 
@@ -162,11 +171,11 @@ class Blacklist(object):
     def __add_channels_url(self, urls, value):
         if not isinstance(urls, list):
             urls = [urls]
-                #check that the domain is being added
+        #check that the domain is being added
         my_urls, invalid_urls = self.__split_on_condition(urls, self.check_domain)
         #get ids
         ids = [self.data.channel_id(url) for url in my_urls]
-        valid_ids, invalid_ids = self.__split_on_condition(ids, lambda x: x and x[0] != "PRIVATE")
+        valid_ids, invalid_ids = self.__split_on_condition_altlist(ids, lambda x: x and x[0] != "PRIVATE", my_urls)
         return invalid_urls + invalid_ids + self.__add_channels([v[0] for v in valid_ids], value)
 
     def __remove_channels_url(self, urls, value):
@@ -176,7 +185,7 @@ class Blacklist(object):
         my_urls,invalid_urls = self.__split_on_condition(urls, self.check_domain)
         #get ids
         ids = [self.data.channel_id(url) for url in my_urls]
-        valid_ids, invalid_ids = self.__split_on_condition(ids, lambda x: x and x[0] != "PRIVATE")
+        valid_ids, invalid_ids = self.__split_on_condition_altlist(ids, lambda x: x and x[0] != "PRIVATE", my_urls)
         return invalid_urls + invalid_ids + self.__remove_channels([v[0] for v in valid_ids], value)
 
     def __remove_channels(self, ids, value):

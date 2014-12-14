@@ -45,7 +45,10 @@ class BlacklistQuery(RedditThread.RedditThread):
         #last mod update
         self.last_mod_update = datetime.datetime.now()
 
-        self.url_regex = re.compile(r"(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?")
+        #stolen/modified from Django
+        self.url_regex = re.compile(r'^https?://(?!.+https?://)'  # http:// or https:// (and only one on a line)
+                                    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?))'  # domain...
+                                    r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
         self.print_command = re.compile(r"^[pP]rint\b")
         self.add_command = re.compile(r"^(\+)|([aA]dd)\b")
@@ -125,7 +128,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.doc_string = u"  \n".join(self.doc_strings)
         self.doc_string = textwrap.dedent(self.doc_string)
 
-        self.line_splitter = re.compile("  |\n")
+        self.line_splitter = re.compile("(  \n)|\n")
         self.quote_splitter = re.compile("\"([^\"]+)\",")
         self.quote_match = re.compile("^(\"[^\"]+\",\\s*)*\"[^\"]+\"$")
 
@@ -238,13 +241,18 @@ class BlacklistQuery(RedditThread.RedditThread):
                                  u"Subject: {}".format(subject))
             return False
 
-        lines = [l for l in self.line_splitter.split(text) if len(l)]
+        lines = [l.strip() for l in self.line_splitter.split(text) if l and len(l.strip())]
         matches = [self.quote_match.match(l) for l in lines]
         matches = [m for m in matches if m]
-        if len(matches):
+        if len(matches) and len(matches) == len(lines) - 1:
             url_list = False
-        else:
+        elif not len(matches):
             url_list = True
+        else:
+            Actions.send_message(self.praw, author, u"RE: Black/whitelist add/removal",\
+                                 u"Could not determine format of request.  For an id list, the first line must"\
+                                 u"be a domain and all subsequent lines must be followed by comma separated ids in"\
+                                 u"quotes.  For a url list, there must be no comma separated ids.")
 
         blist = None
         #test the first line to get appropriate blacklist
@@ -287,6 +295,14 @@ class BlacklistQuery(RedditThread.RedditThread):
                     real_entries[-1] = self.quote_splitter.split(real_entries[-1]).group(1)
             #copy back
             entries = real_entries[:]
+        else:
+            real_entries = []
+            for entry in entries:
+                if self.url_regex.match(entry) and Actions.resolve_url(entry):
+                    real_entries.append(entry)
+                else:
+                    invalid.append(entry)
+            entries = real_entries[:]
 
         if blacklist:
             if add:
@@ -317,7 +333,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                 retstr += u"  \n".join(invalid)
             else:
                 retstr += u"  \n".join([u"id = {}, domain = {}  \n".format(id, self.lines[0]) for id in invalid])
-            self.policy.debug(u"Invalid entry detected for message", retstr)
+            #self.policy.debug(u"Invalid entry detected for message", retstr)
             Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white",\
                 u"addition" if add else u"removal"), retstr)
             return False

@@ -139,8 +139,11 @@ class YoutubeExtractor(IdentificationExtractor):
             yt_id = self.channel_regex.findall(
             url.replace('%3D', '=').replace('%26', '&').replace('%2F', '?').replace('&amp;', '&'))
 
+        if yt_id and len(yt_id) > 1:
+            logging.info(u"More than one YT id detected in url {}".format(url))
+            return None
+
         if yt_id:
-            # temp fix:
             yt_id = yt_id[0].split('#')[0]
             yt_id = yt_id.split('?')[0]
             return yt_id
