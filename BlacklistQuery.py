@@ -291,8 +291,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                         invalid.append(entry)
                     else:
                         real_entries.extend(val.group(1))
-                if self.quote_splitter.match(real_entries[-1]):
-                    real_entries[-1] = self.quote_splitter.split(real_entries[-1]).group(1)
+                #finally take care of quotes on the last one
+                real_entries[-1] = real_entries[-1][1:-1]
             #copy back
             entries = real_entries[:]
         else:
