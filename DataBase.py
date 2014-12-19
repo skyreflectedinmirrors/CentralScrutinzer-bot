@@ -223,7 +223,8 @@ class DataBaseWrapper(object):
                     return True
                 except sqlite3.Error, e:
                     logging.error("Could not add channels to database")
-                    logging.debug(str(e))
+                    if __debug__:
+                        logging.exception(e)
                 return False
 
             def channel_exists(self, channel_list):

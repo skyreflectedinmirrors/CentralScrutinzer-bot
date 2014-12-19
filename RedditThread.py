@@ -1,3 +1,5 @@
+#!/usr/bin/env python2.7
+
 import threading
 import CentralScrutinizer
 import Policies
@@ -23,11 +25,15 @@ class RedditThread(object):
         #check for pause
         while self.wait.is_set():
             self.wait.wait(self.policy.Pause_Period)
+
         #check for exit
         if self.exit.is_set():
-            self.__shutdown()
+            self.shutdown()
             return False
         return True
+
+    def shutdown(self):
+        raise NotImplementedError
 
     def log_error(self):
         self.instances[0] = 1

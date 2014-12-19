@@ -6,8 +6,6 @@ import utilitymethods
 import Actions
 import logging
 import Blacklist
-import multiprocessing
-from collections import defaultdict
 import traceback
 
 class StrikeCounter(RedditThread.RedditThread):
@@ -34,10 +32,7 @@ class StrikeCounter(RedditThread.RedditThread):
 
     def scan(self):
         """
-
-        :type post: praw.R
-        :param db:
-        :return:
+        Scans the previously collected reddit posts for deleted posts
         """
         #scan old messages, see if deleted
         with DataBase.DataBaseWrapper(self.database_file, False) as db:
@@ -76,6 +71,7 @@ class StrikeCounter(RedditThread.RedditThread):
                 #resolve all the added ids
                 if add_channels:
                     if not db.add_channels(add_channels):
+                        logging.info("Error adding channels to channel_record, skipping processing of posts")
                         continue #if there was an error adding the channels, don't mark as processed
 
 
@@ -96,6 +92,8 @@ class StrikeCounter(RedditThread.RedditThread):
                     db.add_strike([(increment_posts[key],) + key for key in increment_posts])
                     #remove from consideration (so we don't count them over and over)
                     db.set_processed(processed_posts)
+                    if __debug__:
+                        logging.info("Strike Counter found {} new deleted posts...".format(len(processed_posts)))
 
 
                 #forget old entries
@@ -106,14 +104,14 @@ class StrikeCounter(RedditThread.RedditThread):
 
             if channels and len(channels):
                 if __debug__:
-                    for i, channel in enumerate(channels):
-                        self.policy.info(u"Adding channel to blacklist", u"channel={}, domain = {}".format(channel[0], channel[1]))
-                #add channels to blacklist
+                    logging.info("{} new channels added to the blacklist".format(len(channels)))
                 db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted)
 
             #remove older than scan period
             db.remove_reddit_older_than(self.policy.Strike_Counter_Scan_History.days)
 
+            if __debug__:
+                logging.info("Strike count completed successfully at {}".format(datetime.datetime.now()))
     def run(self):
         while True:
             #check for pause
@@ -124,8 +122,11 @@ class StrikeCounter(RedditThread.RedditThread):
                 self.scan()
             except Exception, e:
                 logging.error("Exception occured while scanning old reddit posts")
-                logging.debug(str(e))
-                logging.debug(traceback.format_exc())
+                if __debug__:
+                    logging.exception(e)
                 self.log_error()
 
             time.sleep(self.policy.Strike_Counter_Frequency)
+
+    def shutdown(self):
+        pass

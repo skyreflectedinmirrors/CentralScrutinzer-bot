@@ -1,6 +1,7 @@
+#!/usr/bin/env python2.7
+
 import CentralScrutinizer
 import utilitymethods
-import threading
 import Actions
 from Policies import DefaultPolicy
 import logging
@@ -16,12 +17,7 @@ class BlacklistQuery(RedditThread.RedditThread):
     :type policy: DefaultPolicy
     :type owner: CentralScrutinizer.CentralScrutinizer
 
-    The blacklist query object allows mods to ask for black/whitelists through reddit
-    The query syntax is as follows:
-
-    print (black)|(white)list domain (filter)? -- print the black/whitelist for the domain for all channels matching the (optional) filter
-    update-mods -- updates the modlist
-    add (black)|(white)list url -- add the url of the given channel to the black/whitelist
+    The blacklist query object allows mods to ask for add/remove from black/whitelists through reddit
     """
 
     def __init__(self, owner):
@@ -129,15 +125,20 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.doc_string = textwrap.dedent(self.doc_string)
 
         self.line_splitter = re.compile("(  \n)|\n")
-        self.quote_splitter = re.compile("\"([^\"]+)\",")
-        self.quote_match = re.compile("^(\"[^\"]+\",\\s*)*\"[^\"]+\"$")
+        self.quote_splitter = re.compile("\"([^\\n]+)\",")
+        self.quote_match = re.compile("^(\".+\",\\s*)*\".+\"$")
 
         self.message_cache = []
 
-    def __shutdown(self):
+    def shutdown(self):
         pass
 
-    def update_mods(self, author):
+    def update_mods(self, author = None):
+        """
+        Update the internal mod-list (who can execute queries)
+        :param author: if specified, the bot will respond to this user to let them know success/failure
+        :return: None
+        """
         try:
             mlist = [mod.name for mod in Actions.get_mods(self.praw, self.sub)]
             if mlist is None or not len(mlist):
@@ -149,11 +150,12 @@ class BlacklistQuery(RedditThread.RedditThread):
                 Actions.send_message(self.praw, author, u"RE: Modlist update", u"Success!")
             return True
         except Exception, e:
-            self.policy.debug(u"Error updating mod_list")
             if author is not None:
                 Actions.send_message(self.praw, author, u"RE: Modlist update", u"Error encountered, please try again later.")
-            logging.critical(u"Could not update moderator list!")
-            logging.debug(str(e))
+            logging.error(u"Could not update moderator list!")
+            self.log_error()
+            if __debug__:
+                logging.exception(e)
             return False
 
     def __print(self, author, subject, text):
@@ -227,6 +229,15 @@ class BlacklistQuery(RedditThread.RedditThread):
 
 
     def __add_remove(self, author, subject, text, add):
+        """
+        add/remove a list of entries from the black/whitelist
+
+        :param author: the mod who initiated this query
+        :param subject: the subject line of the message
+        :param text: the text of the message
+        :param add: a boolean indicating whether this is an addition or removal
+        """
+
         #get black/whitelist
         blacklist = None
         result = self.blist_command.search(subject)
@@ -343,11 +354,15 @@ class BlacklistQuery(RedditThread.RedditThread):
         return True
 
     def is_cached(self, id):
+        """
+        Simple method to avoid re-processing messages
+        """
         return id in self.message_cache
 
     def process_message(self, message):
         """
-        Handles the processing of unread messages, allows for easier testing
+        Handles the processing of unread messages
+        :param message: the message to process
         """
         result = None
         # valid author check
@@ -408,7 +423,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                         logging.info(u"Blacklist query processing message:\n{}".format(message.body))
             except Exception, e:
                 logging.error(u"Error on retrieving unread messages")
-                logging.debug(str(e))
+                if __debug__:
+                    logging.exception(e)
                 self.log_error()
 
             self.message_cache = []
