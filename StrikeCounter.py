@@ -107,8 +107,21 @@ class StrikeCounter(RedditThread.RedditThread):
                     logging.info("{} new channels added to the blacklist".format(len(channels)))
                 db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted)
 
+            #find posts older than scan period marked as processed
+            old_date = datetime.datetime.now() - self.policy.Strike_Counter_Scan_History
+            old_strikes = db.processed_older_than(old_date)
+            if old_strikes is not None and len(old_strikes):
+                decrement_count = {}
+                for pair in old_strikes:
+                    if not pair in decrement_count:
+                        decrement_count[pair] = 0
+                    decrement_count[pair] += 1
+
+                #and remove them from the count
+                db.subtract_strikes([(decrement_count[pair],) + pair for pair in decrement_count])
+
             #remove older than scan period
-            db.remove_reddit_older_than(self.policy.Strike_Counter_Scan_History.days)
+            db.remove_reddit_older_than(old_date)
 
             if __debug__:
                 logging.info("Strike count completed successfully at {}".format(datetime.datetime.now()))
