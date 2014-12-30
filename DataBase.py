@@ -24,7 +24,7 @@ class DataBaseWrapper(object):
             def __init__(self, databasefile, create_on_enter):
                 # open the database and create cursor
                 try:
-                    self.db = sqlite3.connect(databasefile)
+                    self.db = sqlite3.connect(databasefile, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
                     self.cursor = self.db.cursor()
                     if create_on_enter:
                         self.__create_table()
@@ -90,8 +90,14 @@ class DataBaseWrapper(object):
                 return True
 
             def newest_reddit_entries(self, limit=1):
+                """
+                Returns a list containing the timestamp of creation of the latest (limit) posts
+                :param limit:
+                :return:
+                """
                 try:
-                    return self.cursor.execute("select short_url from reddit_record order by date_added desc limit ?", (limit,)).fetchall()
+                    return [x[0] for x in self.cursor.execute("select date_added from reddit_record order by date_added desc limit ?",
+                                                (limit,)).fetchall()]
                 except Exception, e:
                     logging.error("Could not select newest reddit entries")
                     logging.debug(str(e))
@@ -126,20 +132,23 @@ class DataBaseWrapper(object):
             def add_reddit(self, reddit_entries):
                 """adds the supplied reddit entries to the reddit_record
 
-                :param reddit_entries: a list of tuples consisting of (short_url, channel_id, domain)
+                :param reddit_entries: a list of tuples consisting of (short_url, channel_id, domain, date_added)
                 :return:
                 """
                 try:
                     if not isinstance(reddit_entries, list):
                         reddit_entries = list(reddit_entries)
                     reddit_entries = [(e,) if not isinstance(e, tuple) else e for e in reddit_entries]
-                    self.cursor.executemany('''insert into reddit_record (short_url, channel_id, domain, date_added) values(?, ?, ?, ?)''', reddit_entries)
+                    self.cursor.executemany(
+                        '''insert or ignore into reddit_record (short_url, channel_id, domain, date_added) values(?, ?, ?, ?)''',
+                        reddit_entries)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Could not add reddit entries to database")
                     logging.debug(str(e))
 
-            def get_reddit(self, channel_id=None, domain=None, date_added=None, processed=None, return_channel_id=True, return_domain=True, return_dateadded=False):
+            def get_reddit(self, channel_id=None, domain=None, date_added=None, processed=None, return_channel_id=True,
+                           return_domain=True, return_dateadded=False):
                 """returns a list of reddit entries matching the provided search modifiers (i.e. channel_id, domain, date_added)
 
                 :returns: a list of tuples of the form (short_url, channel_id*, domain*, date_added* (*if specified))
@@ -180,17 +189,30 @@ class DataBaseWrapper(object):
                     logging.error("Error fetching entries from reddit_record")
                     logging.debug(str(e))
 
-            def remove_reddit_older_than(self, days):
+            def processed_older_than(self, the_time):
+                """returns all entries from the reddit_record processed before a certain date
+
+                :param days: how many days ago
+                """
+                try:
+                    self.cursor.execute(
+                        "select channel_id, domain from reddit_record where date_added < ? and processed = 1",
+                        (the_time,))
+                    return self.cursor.fetchall()
+                except sqlite3.Error, e:
+                    logging.error("Could not remove processed reddit records older than " + str(the_time))
+                    logging.debug(str(e))
+
+            def remove_reddit_older_than(self, the_time):
                 """removes all entries from the reddit_record older than a certain date
 
                 :param days: how many days ago
                 """
                 try:
-                    the_time = datetime.datetime.now() - datetime.timedelta(days=days)
                     self.cursor.execute("delete from reddit_record where date_added < ?", (the_time,))
                     self.db.commit()
                 except sqlite3.Error, e:
-                    logging.error("Could not remove reddit records older than " + str(days) + " days")
+                    logging.error("Could not remove reddit records older than " + str(the_time))
                     logging.debug(str(e))
 
             def remove_reddit(self, reddit_entries):
@@ -249,12 +271,14 @@ class DataBaseWrapper(object):
                 :return: a list of booleans indicating whether the reddit entry exists or not
                 """
                 try:
-                    return [self.cursor.execute("""select short_url from reddit_record where short_url = ?""", (entry,)).fetchone() is not None for entry in reddit_list]
+                    return [self.cursor.execute("""select short_url from reddit_record where short_url = ?""",
+                                                (entry,)).fetchone() is not None for entry in reddit_list]
                 except sqlite3.Error, e:
                     logging.error("Error on reddit exists check")
                     logging.debug(str(e))
 
-            def get_channels(self, blacklist=None, blacklist_not_equal=None, domain=None, strike_count=None, id_filter=None, return_url=False, return_blacklist=False, return_strikes=False):
+            def get_channels(self, blacklist=None, blacklist_not_equal=None, domain=None, strike_count=None,
+                             id_filter=None, return_url=False, return_blacklist=False, return_strikes=False):
                 """returns the channels matching the supplied query
 
                 :param blacklist: the black/whitelist to match
@@ -265,7 +289,7 @@ class DataBaseWrapper(object):
                          or None if empty query
                 """
 
-                #setup returns
+                # setup returns
                 query = "select channel_id, domain"
                 if return_url:
                     query += ", channel_url"
@@ -312,7 +336,8 @@ class DataBaseWrapper(object):
                     return self.cursor.fetchall()
                 except sqlite3.Error, e:
                     logging.error("Error on get_channels fetch.")
-                    logging.debug("domain, blacklist, id_filter:" + str(domain) + ", " + str(blacklist) + ", " + str(id_filter))
+                    logging.debug(
+                        "domain, blacklist, id_filter:" + str(domain) + ", " + str(blacklist) + ", " + str(id_filter))
 
             def set_blacklist(self, channel_entries, value):
                 """Updates the black/whitelist for the given channel entries
@@ -322,7 +347,8 @@ class DataBaseWrapper(object):
                 """
                 try:
                     self.cursor.executemany('update channel_record set blacklist = ? where channel_id = ?'
-                     ' and domain_eq(domain, ?)', [(value, channel[0], channel[1]) for channel in channel_entries])
+                                            ' and domain_eq(domain, ?)',
+                                            [(value, channel[0], channel[1]) for channel in channel_entries])
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on set_blacklist.")
@@ -352,7 +378,7 @@ class DataBaseWrapper(object):
                     list = []
                     for channel in channel_entries:
                         list.append(self.cursor.execute('select blacklist from channel_record where '
-                                            'channel_id = ? and domain_eq(domain, ?)', channel).fetchone())
+                                                        'channel_id = ? and domain_eq(domain, ?)', channel).fetchone())
                     list = [entry[0] if entry else Blacklist.BlacklistEnums.NotFound for entry in list]
                     return list
                 except sqlite3.Error, e:
@@ -372,6 +398,20 @@ class DataBaseWrapper(object):
                 except sqlite3.Error, e:
                     logging.error("Error on set_strikes.")
                     logging.debug(str(e))
+
+            def subtract_strikes(self, channel_entries):
+                """Subtracts from the strike count for the given channels
+
+                :param channel_entries: a list of tuples of the form (add_strikes, channel_id, domain)
+                """
+                try:
+                    self.cursor.executemany('update channel_record set strike_count = strike_count - ? where \
+                                             channel_id = ? and domain_eq(domain, ?)', channel_entries)
+                    self.db.commit()
+                except sqlite3.Error, e:
+                    logging.error("Error on subtract_strikes.")
+                    logging.debug(str(e))
+
 
             def add_strike(self, channel_entries):
                 """Adds one to the strike count for the given channels
@@ -398,7 +438,6 @@ class DataBaseWrapper(object):
                 except sqlite3.Error, e:
                     logging.error("Error on set_processed.")
                     logging.debug(str(e))
-
 
 
         self.db = DataBase(self.databasefile, self.create_on_enter)
