@@ -88,15 +88,15 @@ class CentralScrutinizer(object):
         self.ss = ScanSub.SubScanner(self)
         self.bquery = BlacklistQuery.BlacklistQuery(self)
         self.scount = StrikeCounter.StrikeCounter(self)
+        self.mlog = ScanSub.ModLogScanner(self)
 
-        self.reddit_threads = [self.ss, self.bquery, self.scount]
+        self.reddit_threads = [self.ss, self.bquery, self.scount, self.mlog]
 
         self.threads = []
 
     def run(self):
-        self.threads.append(threading.Thread(target=self.ss.run))
-        self.threads.append(threading.Thread(target=self.bquery.run))
-        self.threads.append(threading.Thread(target=self.scount.run))
+        for thread in self.reddit_threads:
+            self.threads.append(threading.Thread(target=thread.run))
 
         for thread in self.threads:
             thread.start()
