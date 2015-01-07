@@ -193,6 +193,9 @@ def send_message(reddit, user, subject, message):
         :return True if sent correctly, false otherwise
     """
     try:
+        if len(message) >= 10000:
+            temp = "  \nMessage too long, truncated to 10000 characters..."
+            message = message[:10000 - len(temp)] + temp
         reddit.send_message(user, subject, message)
     except requests.exceptions.HTTPError, e:
         logging.error("Message " + subject + " could not be sent to user " + user)
