@@ -56,7 +56,6 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         self.blist_command = re.compile(r"\b[Bb]lacklist\b")
         self.wlist_command = re.compile(r"\b[wW]hitelist\b")
-        self.filters = [re.compile(r'(?<!\\)\"(.+)(?<!\\)\"'), re.compile(r"\b(\w+)\b")]
 
         self.short_doc_string = \
             u"""Available Commands:
@@ -125,7 +124,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.doc_string = textwrap.dedent(self.doc_string)
 
         self.line_splitter = re.compile("(  \n)|\n")
-        self.quote_splitter = re.compile("\"([^\\n]+)\",")
+        self.quote_splitter = re.compile("[^\"\\]*(?:\\.[^\"\\]*)*\"|[^,]+")
         self.quote_match = re.compile("^(\".+\",\\s*)*\".+\"$")
 
         self.message_cache = []
@@ -180,7 +179,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             return False
 
         #check that we have text
-        lines = [l for l in self.line_splitter.split(text) if len(l)]
+        lines = [l.strip() for l in self.line_splitter.split(text) if len(l.strip())]
         if not len(lines):
             Actions.send_message(self.praw, author, u"RE: {}list print".format(u"Black" if blacklist else u"White"),\
                                  u"No domain specified in text:  \n{}".format(text))
@@ -200,21 +199,14 @@ class BlacklistQuery(RedditThread.RedditThread):
         myfilter = None
         #get filter
         if len(lines) > 1:
-            filters = [f.search(lines[1]) for f in self.filters]
-            filters = [f for f in filters if f]
-            if len(filters):
-                result = filters[0]
-                if result:
-                    result = result.groups()
-                    if len(result):
-                        myfilter = result[0]
+            myfilter = lines[1]
 
         if blacklist:
             results = blist.get_blacklisted_channels(myfilter)
         else:
             results = blist.get_whitelisted_channels(myfilter)
         if len(results):
-            results = sorted([result[0] for result in results])
+            results = [result[0] for result in results]
         else:
             Actions.send_message(self.praw, author, subject, u"Error querying blacklist, please submit bug report to \
                                  /r/centralscrutinizer")
@@ -293,17 +285,12 @@ class BlacklistQuery(RedditThread.RedditThread):
             real_entries = []
             #if we have an id list, we have to see if they're comma separated
             for entry in entries:
-                val = self.quote_splitter.split(entry)
+                val = self.quote_splitter.findall(entry)
                 if val:
                     real_entries.extend([v.strip() for v in val if v and len(v.strip())])
                 else:
-                    val = self.quote_splitter.match(entry)
-                    if not val:
-                        invalid.append(entry)
-                    else:
-                        real_entries.extend(val.group(1))
-                #finally take care of quotes on the last one
-                real_entries[-1] = real_entries[-1][1:-1]
+                    Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white"\
+                        ), u"Cannot parse quoted identifiers:  \n{}".format(entry))
             #copy back
             entries = real_entries[:]
         else:
@@ -350,7 +337,9 @@ class BlacklistQuery(RedditThread.RedditThread):
             return False
 
         Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white",\
-                u"addition" if add else u"removal"), u"Success!")
+                u"addition" if add else u"removal"), u"The following channels were successfully {} from the {}list  \n"
+                                                     u"{}".format(u"added" if add else u"remove", u"black" if blacklist\
+                                                     else u"white", u"  \n".join(entries)))
         return True
 
     def is_cached(self, id):
@@ -382,7 +371,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                     self.update_mods(message.author.name)
                 #print query
                 elif matches[0] == self.print_command:
-                    result = self.__print(text, message.author.name)
+                    result = self.__print(message.author.name, subject, text)
                 #help query
                 elif matches[0] == self.help_command:
                     Actions.send_message(self.praw, message.author.name, u"RE:{}".format(message.subject),
