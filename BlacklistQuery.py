@@ -239,7 +239,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             Actions.send_message(self.praw, author, subject, u"Error querying blacklist, please submit bug report to \
                                  /r/centralscrutinizer")
             return False
-        out_str = u"\n".join(results)
+        out_str = u"  \n".join(results)
         subject = u"RE:{}list print".format(u"black" if blacklist else u"white")
         subject += u" w/ domain " + blist.domains[0]
         if myfilter:
@@ -377,12 +377,11 @@ class BlacklistQuery(RedditThread.RedditThread):
                                                                             u"addition" if add else u"removal"), retstr)
             return False
 
-        Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
+        return Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                         u"addition" if add else u"removal"),
                              u"The following channels were successfully {} from the {}list  \n"
                              u"{}".format(u"added" if add else u"remove", u"black" if blacklist \
                                  else u"white", u"  \n".join(entries)))
-        return True
 
     def is_cached(self, id):
         """
