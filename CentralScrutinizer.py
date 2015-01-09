@@ -89,8 +89,9 @@ class CentralScrutinizer(object):
         self.bquery = BlacklistQuery.BlacklistQuery(self)
         self.scount = StrikeCounter.StrikeCounter(self)
         self.mlog = ScanSub.ModLogScanner(self)
+        self.h_scan = ScanSub.HistoricalScanner(self)
 
-        self.reddit_threads = [self.ss, self.bquery, self.scount, self.mlog]
+        self.reddit_threads = [self.ss, self.bquery, self.scount, self.mlog, self.h_scan]
 
         self.threads = []
 
