@@ -210,7 +210,6 @@ class Blacklist(object):
                     invalid_ids.append(ids[i])
             if len(update_list):
                 db.set_blacklist(update_list, BlacklistEnums.NotFound)
-
             #check that they were removed correctly
             set_correct = db.check_blacklist(update_list, BlacklistEnums.NotFound)
             invalid_ids += [ids[i] for i, val in enumerate(set_correct) if not val]
