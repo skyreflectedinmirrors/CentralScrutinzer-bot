@@ -72,8 +72,9 @@ class SubScanner(RedditThread.RedditThread):
         goto = None
         if scan:
             with DataBase.DataBaseWrapper(self.file, False) as db:
-                goto = db.newest_reddit_entries()[0]
-                if goto:
+                goto = db.newest_reddit_entries()
+                if goto is not None and len(goto):
+                    goto = goto[0]
                     goto -= datetime.timedelta(days=1)
         if self.policy.Historical_Scan_On_New_Database:
             with DataBase.DataBaseWrapper(self.file, False) as db:
