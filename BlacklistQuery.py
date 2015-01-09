@@ -132,10 +132,12 @@ class BlacklistQuery(RedditThread.RedditThread):
         entries = []
         quote_depth = 0
         no_word_chars = True
-        start_index = -1
+        start_index = None
         for i, char in enumerate(line):
             if char == '\"':  # if we see a quote
                 if quote_depth == 0:  # if beginning quote
+                    if start_index != None:
+                        return i #wasn't comma separated
                     quote_depth += 1
                     start_index = i
                     no_word_chars = True
@@ -149,6 +151,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                 if start_index + 1 >= i - 1:
                     return start_index + 1  # bad entry
                 entries.append(line[start_index + 1: i - 1])  # add entry to list
+                start_index = None
             elif no_word_chars:
                 no_word_chars = False
         return entries
@@ -318,7 +321,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                     #bad entry detected at index val
                     Actions.send_message(self.praw, author, u"RE: {}list {}".format(
                         u"black" if blacklist else u"white", u"addition" if add else u"removal"),
-                        u"Error in ID list detected:  \n" + entry[start:end] + u"  \n" +
+                        u"Error in ID list detected:  \n>" + entry[start:end] + u"  \n" +
                         u"".join([u" " for x in range(val - start)]) + u"\^" +
                         u"".join([u" " for x in range(end - val)]))
                     return False
