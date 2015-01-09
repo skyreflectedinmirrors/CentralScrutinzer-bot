@@ -29,7 +29,7 @@ class IdentificationExtractor(object):
 
 class SoundCloudExtractor(IdentificationExtractor):
     def __init__(self, key):
-        super(SoundCloudExtractor, self).__init__("soundcloud", ["soundcloud.com"])
+        super(SoundCloudExtractor, self).__init__("soundcloud", ["soundcloud.com", "snd.sc"])
         self.soundcloud = soundcloud.Client(client_id=key)
 
     def channel_id(self, url):
