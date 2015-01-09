@@ -136,7 +136,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         for i, char in enumerate(line):
             if char == '\"':  # if we see a quote
                 if quote_depth == 0:  # if beginning quote
-                    if start_index != None:
+                    if start_index is not None:
                         return i #wasn't comma separated
                     quote_depth += 1
                     start_index = i
@@ -146,7 +146,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                 else:
                     quote_depth -= 1  # finally, if we've seen word characters, this is a closing quote
                 if i == len(line) - 1 and quote_depth == 0:  # last entry -> no comma
-                    entries.append(line[start_index + 1: i - 1])  # add entry to list
+                    entries.append(line[start_index + 1: i])  # add entry to list
             elif char == ',' and quote_depth == 0:  # closing comma
                 if start_index + 1 >= i - 1:
                     return start_index + 1  # bad entry
@@ -277,13 +277,15 @@ class BlacklistQuery(RedditThread.RedditThread):
         matches = [m for m in matches if m]
         if len(matches) and len(matches) == len(lines) - 1:
             url_list = False
-        elif not len(matches):
+        elif not len(matches) and any(self.url_regex.match(l) for l in lines):
             url_list = True
         else:
-            Actions.send_message(self.praw, author, u"RE: Black/whitelist add/removal", \
-                                 u"Could not determine format of request.  For an id list, the first line must" \
+            Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
+                                                                            u"addition" if add else u"removal"), \
+                                 u"Could not determine format of request.  For an id list, the first line must " \
                                  u"be a domain and all subsequent lines must be followed by comma separated ids in" \
                                  u"quotes.  For a url list, there must be no comma separated ids.")
+            return False
 
         blist = None
         # test the first line to get appropriate blacklist
@@ -316,13 +318,13 @@ class BlacklistQuery(RedditThread.RedditThread):
             for entry in entries:
                 val = self.quote_splitter(entry)
                 if not isinstance(val, list):
-                    start = max(0, val - 10)
-                    end = min(val + 10, len(entry))
+                    start = max(0, val - 20)
+                    end = min(val + 20, len(entry))
                     #bad entry detected at index val
                     Actions.send_message(self.praw, author, u"RE: {}list {}".format(
                         u"black" if blacklist else u"white", u"addition" if add else u"removal"),
-                        u"Error in ID list detected:  \n>" + entry[start:end] + u"  \n" +
-                        u"".join([u" " for x in range(val - start)]) + u"\^" +
+                        u"Error in ID list detected:  \n" + entry[start:end] + u"\n\n" +
+                        u"".join([u" " for x in range(val - start + 2)]) + u"\^" +
                         u"".join([u" " for x in range(end - val)]))
                     return False
                 if val:
