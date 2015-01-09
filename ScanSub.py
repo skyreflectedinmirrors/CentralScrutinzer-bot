@@ -381,4 +381,8 @@ class HistoricalScanner(SubScanner):
         self.scan_period = owner.policy.Historial_Scan_Period
 
     def get_posts(self, lim):
-        return self.get_historial_posts(self.last_seen - datetime.timedelta(seconds=2 * self.scan_period))
+        try:
+            return self.get_historial_posts(self.last_seen - datetime.timedelta(seconds=2 * self.scan_period))
+        except Exception, e:
+            logging.error("Error loading historical posts")
+            logging.exception(e)
