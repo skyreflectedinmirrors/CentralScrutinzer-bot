@@ -226,4 +226,4 @@ class Blacklist(object):
 
     def __get_channels(self, filter, value):
         with DataBase.DataBaseWrapper(self.file, False) as db:
-            return db.get_channels(blacklist=value, id_filter=filter)
+            return db.get_channels(blacklist=value, domain=self.domains[0], id_filter=filter)
