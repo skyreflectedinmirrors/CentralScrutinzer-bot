@@ -23,9 +23,12 @@ httplib2 -- version >= 0.9
 #Setup
 ##Credentials file
 The first task you will need to do is to create a credentials file.  I have provided a sample in SampleCredentials.cred.  Note anything after a # is ignored
+
 1.  Change the subreddit field to whichever subreddit you want to monitor, e.g.:
 	SUBREDDIT = listentothis #the subreddit to watch
+	
 2.  Obtain a [Soundcloud API key](https://developers.soundcloud.com/).  Replace the None part of the Soundcloud API line with this key
+
 3.  Obtain a [Google API key](https://developers.google.com/youtube/v3/getting-started).  Replace the None part of the GOOGLEID line with this key
 
 ##Policy file
@@ -35,3 +38,30 @@ The various switches should be decently well documented, but if you have a quest
 #Mod Interaction
 The nicest feature (in my biased opinion) is the ability of the any mod of your sub to add/remove/query the blacklist simply by sending a message to the CS Bot instance in question!
 This section will detail the various mod commands, and give examples!
+
+**Note**: 
+* In this section S: is short for the subject line and B: for the message body.  
+* [option1]/[option2]... indicates that one of the two (or more) options should be selected
+* Anything in parentheses (or after parenthetic text) is simply a comment
+* Line breaks are important.  The text you send on reddit should have line breaks where outlined here (use the preview feature of RES to be sure if needed)
+
+##Available comands
+
+###Help
+Pretty self explanitory...  Will send the querying mod a help message outlining available commands, call syntax and other options/info (such as available domains)
+
+###Print
+Return a list of black/whitelisted channels for a given domain and (optional) id filter
+
+Syntax:
+S: print [whitelist]/[blacklist]
+B: domain (the domain to use)
+filter (optional, regex is also accepted)
+
+Examples:
+S: print blacklist
+B: youtube.com  
+j.*b
+
+Result:
+This will result a list of all blacklisted youtube channels that 
