@@ -89,8 +89,7 @@ B: domain
 Note that each line (after the first domain line) should contain a comma separated list of quoted channel titles.  
 
 **A Note on channel titles with quotes/commas in them**  
-In order to prevent mistakes on the part of moderators, any id list containing an channel id with a quote or comma inside is not acted upon.  
-Instead the offending ids are identified, and the CS bot will respond to you asking if you really meant to black/whitelist these id's.  
+In order to prevent mistakes on the part of moderators, any id list containing an channel id with a quote or comma inside is not acted upon. Instead the offending ids are identified, and the CS bot will respond to you asking if you really meant to black/whitelist these id's.  
 This is to prevent a situation like the following:
 
 S: +blacklist  
