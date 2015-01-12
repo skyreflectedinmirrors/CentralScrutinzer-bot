@@ -161,7 +161,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                     end_index -= 1
                 if line[end_index] != '\"':
                     #missing closing quote, or some other garbage in between
-                    return end_index
+                    warn_entries.append(line[start_index + 1 : end_index + 1])
+                    continue
                 if start_index + 1 >= end_index:
                     return start_index + 1  # bad entry
                 if quote_count > 2 and not force:
@@ -251,13 +252,15 @@ class BlacklistQuery(RedditThread.RedditThread):
             results = blist.get_blacklisted_channels(myfilter)
         else:
             results = blist.get_whitelisted_channels(myfilter)
-        if len(results):
-            results = [result[0] for result in results]
-        else:
+        if results is None:
             Actions.send_message(self.praw, author, subject, u"Error querying blacklist, please submit bug report to \
                                  /r/centralscrutinizer")
             return False
-        out_str = u"  \n".join(results)
+        elif len(results):
+            results = [result[0] for result in results]
+            out_str = u"  \n".join(results)
+        else:
+            out_str = u"No matches found!"
         subject = u"RE:{}list print".format(u"black" if blacklist else u"white")
         subject += u" w/ domain " + blist.domains[0]
         if myfilter:
