@@ -46,7 +46,7 @@ def clear_sub(credentials, sub, num=20):
             try:
                 post = old_stream.next()
                 Actions.remove_post(post, delete=True)
-                print("deleted old post: %s..." % post.title[:20])
+                print("# {} deleted...".format(i))
             except AttributeError:
                 # Post or Comment may have been deleted between retrieving it
                 # and accessing its fields
