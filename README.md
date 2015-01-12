@@ -40,7 +40,7 @@ This section will detail the various mod commands, and give examples!
 **Note**: 
 * In this section S: is short for the subject line and B: for the message body.  
 * [option1]/[option2]... indicates that one of the two (or more) options should be selected
-* Anything in parentheses (or after parenthetic text) is simply a comment
+* Anything after a -- is simply a comment
 * Line breaks are important.  The text you send on reddit should have line breaks where outlined here (use the preview feature of RES to be sure if needed)
 
 ##Available comands
@@ -50,15 +50,15 @@ Pretty self explanitory...  Will send the querying mod a help message outlining 
 
 Syntax:  
 S: help  
-B: [domains]/[command]/[anything]  (With domains specified, the bot will return the list of valid domains.  If a command is specified, the bot will tell you more about it.  For any other text, the generic help message is returned)
+B: [domains]/[command]/[anything] -- With domains specified, the bot will return the list of valid domains.  If a command is specified, the bot will tell you more about it.  For any other text, the generic help message is returned)
 
 ###Print
 Return a list of black/whitelisted channels for a given domain and (optional) id filter
 
 Syntax:  
 S: print [whitelist]/[blacklist]  
-B: domain (the domain to use)  
-filter (optional, regex is also accepted)
+B: domain -- the domain to use   
+filter -- optional, regex is also accepted
 
 Examples:
 S: print whitelist  
@@ -83,8 +83,8 @@ The add by ID feature adds a list of quoted, comma separated channel id's to the
 Syntax:
 S: +[blacklist]/[whitelist]
 B: domain  
-"Id1", "Id2", "Id3".... "IdN" (the first id list)  
-"OtherID1", "OtherID2" ... "OtherID2" (another id list)
+"Id1", "Id2", "Id3".... "IdN" --the first id list  
+"OtherID1", "OtherID2" ... "OtherID2" --another id list
 
 Note that each line (after the first domain line) should contain a comma separated list of quoted channel titles.  
 
@@ -140,8 +140,8 @@ Remove the specified channels from the black/whitelist.  Works very similarly to
 Syntax:
 S: -[blacklist]/[whitelist]
 B: domain  
-"Id1", "Id2", "Id3".... "IdN" (the first id list)  
-"OtherID1", "OtherID2" ... "OtherID2" (another id list)
+"Id1", "Id2", "Id3".... "IdN" --the first id list  
+"OtherID1", "OtherID2" ... "OtherID2" --another id list
 
 Example:
 S: -whitelist
