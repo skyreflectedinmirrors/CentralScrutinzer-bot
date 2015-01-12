@@ -159,9 +159,9 @@ class BlacklistQuery(RedditThread.RedditThread):
                 end_index = i - 1
                 while end_index > start_index + 1 and self.whitespace.match(line[end_index]):
                     end_index -= 1
-                if line[end_index] != '\"':
+                if line[end_index] != '\"' and not force:
                     #missing closing quote, or some other garbage in between
-                    warn_entries.append(line[start_index + 1 : end_index + 1])
+                    warn_entries.append(line[start_index + 1 : min(end_index + 10, len(line) - 1)])
                     continue
                 if start_index + 1 >= end_index:
                     return start_index + 1  # bad entry
@@ -351,12 +351,13 @@ class BlacklistQuery(RedditThread.RedditThread):
                         u"".join([u" " for x in range(end - val)]))
                     return False
                 elif isinstance(val, tuple):
-                    warn_entries = val[1]
                     body =u"Warning: potential error(s) in ID list detected, **No action has been taken**.  \n" \
-                        u"More than two quotes found in the following entries:  \n"
-                    body += u"  \n".join(warn_entries)
-                    body += u"  \nIf these entries have been correctly parsed, please resubmit your last query with " \
+                        u"More than two quotes or a comma has been found in the following entries:  \n"
+                    body += u"  \n".join(val[1])
+                    body += u"  \n  \nIf these entries have been correctly parsed, please resubmit your last query with " \
                             u"the --force flag in the subject line."
+                    body += u"  \n  \n**Parsed entries**:  \n"
+                    body += u"  \n".join(val[0])
                     Actions.send_message(self.praw, author, u"RE: {}list {}".format(
                         u"black" if blacklist else u"white", u"addition" if add else u"removal"), body)
                     return False
