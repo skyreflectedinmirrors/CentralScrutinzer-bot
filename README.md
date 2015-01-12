@@ -50,7 +50,7 @@ Pretty self explanitory...  Will send the querying mod a help message outlining 
 
 Syntax:  
 S: help  
-B: [domains]/[command]/[anything] -- With domains specified, the bot will return the list of valid domains.  If a command is specified, the bot will tell you more about it.  For any other text, the generic help message is returned)
+B: [domains]/[command]/[anything] -- With domains specified, the bot will return the list of valid domains.  If a command is specified, the bot will tell you more about it.  For any other text, the generic help message is returned
 
 ###Print
 Return a list of black/whitelisted channels for a given domain and (optional) id filter
@@ -60,14 +60,14 @@ S: print [whitelist]/[blacklist]
 B: domain -- the domain to use   
 filter -- optional, regex is also accepted
 
-Examples:
+Example:  
 S: print whitelist  
 B: soundcloud.com  
 A
 
 Will print any whitelisted soundcloud channel with an A in it
 
-Examples:  
+Example:  
 S: print blacklist  
 B: youtube.com  
 j.*b
@@ -77,11 +77,11 @@ This will result a list of all blacklisted youtube channels that have a j follow
 
 ###Add
 Add a channel or list of channels by ID or url to the appropriate black or whitelists
-####Add by ID
+######Add by ID
 The add by ID feature adds a list of quoted, comma separated channel id's to the appropriate black/white list
 
-Syntax:
-S: +[blacklist]/[whitelist]
+Syntax:  
+S: +[blacklist]/[whitelist]  
 B: domain  
 "Id1", "Id2", "Id3".... "IdN" --the first id list  
 "OtherID1", "OtherID2" ... "OtherID2" --another id list
@@ -93,22 +93,22 @@ In order to prevent mistakes on the part of moderators, any id list containing a
 Instead the offending ids are identified, and the CS bot will respond to you asking if you really meant to black/whitelist these id's.  
 This is to prevent a situation like the following:
 
-S: +blacklist
+S: +blacklist  
 B: youtube.com  
 "Id1", "Id2" "Id3".... "IdN"
 
 From being parsed as: Id1, Id2" "Id3
 
-Example:
-S: +whitelist
+Example:  
+S: +whitelist  
 B: youtube.com  
 "arghdos"
 
 Result: Add the channel arghdos to the youtube whitelist
 
 
-Example:
-S: +blacklist
+Example:  
+S: +blacklist  
 B: youtube.com  
 "arghdos", "arghdos1"  
 "arghydos", "arghydos1"
@@ -116,12 +116,12 @@ B: youtube.com
 Result: Add arghdos, arghdos1, arghydos, arghydos1 to the youtube blacklist
 
 
-####Add by URL
+######Add by URL
 Optionally, instead of an ID list, you may simply send a URL for each channel you want to black/whitelist (one per line)
 
-Syntax:
-S: +[blacklist]/[whitelist]
-B: URL1 (may be a single video or the channel url)  
+Syntax:  
+S: +[blacklist]/[whitelist]  
+B: URL1 (may be a single video or the channel url)    
 URL2  
 ...
 
@@ -135,22 +135,22 @@ Result:  Add parkerh1288 and SanturronIdiota channels to the youtube whitelist
 ###Remove
 Remove the specified channels from the black/whitelist.  Works very similarly to the add command.
 
-####By Id
+######By Id
 
-Syntax:
-S: -[blacklist]/[whitelist]
+Syntax:  
+S: -[blacklist]/[whitelist]  
 B: domain  
 "Id1", "Id2", "Id3".... "IdN" --the first id list  
 "OtherID1", "OtherID2" ... "OtherID2" --another id list
 
-Example:
-S: -whitelist
+Example:  
+S: -whitelist  
 B: youtube.com  
 "arghdos"
 
 Result: remove arghdos from the youtube whitelist
 
-####By URL
+######By URL
 Example:  
 S: +whitelist  
 B: https://www.youtube.com/watch?v=fVIFmej6VZg  
@@ -163,7 +163,7 @@ Result:  Remove parkerh1288 and SanturronIdiota channels to the youtube whitelis
 Updates the valid mod list (from whom the CS will accept commands).  This is done automatically every day (by default), but you can trigger it manually after adding new mods
 
 Syntax:  
-S: update-mods
+S: update-mods  
 B: doesn't matter (but reddit requires you to put something)
 
 Result: updates the valid mod list
