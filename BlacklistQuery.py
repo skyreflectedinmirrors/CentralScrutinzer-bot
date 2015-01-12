@@ -125,35 +125,53 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         self.line_splitter = re.compile("(  \n)|\n")
         self.quote_match = re.compile("^(\".+\",\\s*)*\".+\"$")
+        self.whitespace = re.compile("\s")
+        self.force = re.compile(u"\\b--[fF]orce\\b")
 
         self.message_cache = []
 
-    def quote_splitter(self, line):
+    def quote_splitter(self, line, force = False):
         entries = []
-        quote_depth = 0
-        no_word_chars = True
+        warn_entries = []
+        in_quotes = False
         start_index = None
+        quote_count = 0
         for i, char in enumerate(line):
             if char == '\"':  # if we see a quote
-                if quote_depth == 0:  # if beginning quote
+                if not in_quotes:  # if beginning quote
                     if start_index is not None:
                         return i #wasn't comma separated
-                    quote_depth += 1
+                    in_quotes = True
+                    quote_count = 1
                     start_index = i
-                    no_word_chars = True
-                elif no_word_chars:  # otherwise, it may be a quoted name inside the quotes
-                    quote_depth += 1
                 else:
-                    quote_depth -= 1  # finally, if we've seen word characters, this is a closing quote
-                if i == len(line) - 1 and quote_depth == 0:  # last entry -> no comma
-                    entries.append(line[start_index + 1: i])  # add entry to list
-            elif char == ',' and quote_depth == 0:  # closing comma
-                if start_index + 1 >= i - 1:
+                    quote_count += 1
+                if i == len(line) - 1 and in_quotes:  # last entry -> no comma
+                    if quote_count > 2 and not force:
+                        warn_entries.append(line[start_index: i + 1])
+                    else:
+                        entries.append(line[start_index + 1: i])  # add entry to list
+            elif char == ',' and in_quotes:  # closing comma
+                #check that we're not at the beginning for some dumb reason
+                if i == 0:
+                    return i
+                #next make sure that the last non whitespace character was a closing quote
+                end_index = i - 1
+                while end_index > start_index + 1 and self.whitespace.match(line[end_index]):
+                    end_index -= 1
+                if line[end_index] != '\"':
+                    #missing closing quote, or some other garbage in between
+                    return end_index
+                if start_index + 1 >= end_index:
                     return start_index + 1  # bad entry
-                entries.append(line[start_index + 1: i - 1])  # add entry to list
+                if quote_count > 2 and not force:
+                    warn_entries.append(line[start_index + 1: end_index])
+                else:
+                    entries.append(line[start_index + 1: end_index])  # add entry to list
                 start_index = None
-            elif no_word_chars:
-                no_word_chars = False
+                in_quotes = False
+        if len(warn_entries):
+            return entries, warn_entries
         return entries
 
     def shutdown(self):
@@ -272,6 +290,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                                  u"Subject: {}".format(subject))
             return False
 
+        force_flag = self.force.search(subject) is not None
+
         lines = [l.strip() for l in self.line_splitter.split(text) if l and len(l.strip())]
         matches = [self.quote_match.match(l) for l in lines]
         matches = [m for m in matches if m]
@@ -316,16 +336,26 @@ class BlacklistQuery(RedditThread.RedditThread):
             real_entries = []
             #if we have an id list, we have to see if they're comma separated
             for entry in entries:
-                val = self.quote_splitter(entry)
-                if not isinstance(val, list):
+                val = self.quote_splitter(entry, force_flag)
+                if isinstance(val, int):
                     start = max(0, val - 20)
                     end = min(val + 20, len(entry))
                     #bad entry detected at index val
                     Actions.send_message(self.praw, author, u"RE: {}list {}".format(
                         u"black" if blacklist else u"white", u"addition" if add else u"removal"),
                         u"Error in ID list detected:  \n" + entry[start:end] + u"\n\n" +
-                        u"".join([u" " for x in range(val - start + 2)]) + u"\^" +
+                        u"".join([u" " for x in range(val - start + 3)]) + u"^" +
                         u"".join([u" " for x in range(end - val)]))
+                    return False
+                elif isinstance(val, tuple):
+                    warn_entries = val[1]
+                    body =u"Warning: potential error(s) in ID list detected, **No action has been taken**.  \n" \
+                        u"More than two quotes found in the following entries:  \n"
+                    body += u"  \n".join(warn_entries)
+                    body += u"  \nIf these entries have been correctly parsed, please resubmit your last query with " \
+                            u"the --force flag in the subject line."
+                    Actions.send_message(self.praw, author, u"RE: {}list {}".format(
+                        u"black" if blacklist else u"white", u"addition" if add else u"removal"), body)
                     return False
                 if val:
                     real_entries.extend([v.strip() for v in val if v and len(v.strip())])
