@@ -25,11 +25,9 @@ httplib2 -- version >= 0.9
 The first task you will need to do is to create a credentials file.  I have provided a sample in SampleCredentials.cred.  Note anything after a # is ignored
 
 1.  Change the subreddit field to whichever subreddit you want to monitor, e.g.:
-	SUBREDDIT = listentothis #the subreddit to watch
-	
-2.  Obtain a [Soundcloud API key](https://developers.soundcloud.com/).  Replace the None part of the Soundcloud API line with this key
-
-3.  Obtain a [Google API key](https://developers.google.com/youtube/v3/getting-started).  Replace the None part of the GOOGLEID line with this key
+	SUBREDDIT = listentothis #the subreddit to watch  
+2.  Obtain a [Soundcloud API key](https://developers.soundcloud.com/).  Replace the None part of the Soundcloud API line with this key  
+3.  Obtain a [Google API key](https://developers.google.com/youtube/v3/getting-started).  Replace the None part of the GOOGLEID line with this key  
 
 ##Policy file
 This file allows you to change the various delays/settings/preferences of the CS bot to your liking.  You are warned that poor decisions here can negatively affect the performance (or even break) the bot!
