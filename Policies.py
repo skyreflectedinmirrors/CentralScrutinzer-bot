@@ -37,7 +37,8 @@ class DefaultPolicy(object):
     Historical_Scan_On_New_Database = True
     Historical_Scan_On_Startup = True
     Scan_Sub_Period = 5 * 60 #seconds
-    Pause_Period = 2 * 60 #seconds
+    Pause_Period = 5 * 60 #seconds
+    Scan_Error_Pause = 5 * 60 #second
     Posts_To_Load = 25
     Unread_To_Load = 10
     Mod_Update_Period = datetime.timedelta(days=1)

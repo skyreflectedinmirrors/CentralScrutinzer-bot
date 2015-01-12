@@ -355,10 +355,14 @@ class SubScanner(RedditThread.RedditThread):
                             logging.critical("Error loading newest database entry")
 
                 #and wait
-                time.sleep(self.scan_period)
+                if result == scan_result.Error:
+                    time.sleep(self.policy.Scan_Error_Pause)
+                else:
+                    time.sleep(self.scan_period)
             except Exception, e:
                 logging.critical("Unknown exception occured during {}".format(self.descriptor))
                 logging.exception(e)
+                time.sleep(self.policy.Scan_Error_Pause)
 
 
 class ModLogScanner(SubScanner):
