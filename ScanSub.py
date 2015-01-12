@@ -210,7 +210,7 @@ class SubScanner(RedditThread.RedditThread):
         else:
             posts = Actions.get_posts(self.sub, 900)
             if posts is None:
-                return scan_result.Error
+                return None
 
         return posts
 
@@ -235,6 +235,8 @@ class SubScanner(RedditThread.RedditThread):
         lim = limit if limit else self.policy.Posts_To_Load
         # first ask for posts
         posts = self.get_posts(lim)
+        if posts is None:
+            return scan_result.Error
         found_old = False
 
         try:
@@ -374,6 +376,7 @@ class ModLogScanner(SubScanner):
             logging.error(str(e))
             if __debug__:
                 logging.exception(e)
+        return None
 
 class HistoricalScanner(SubScanner):
     def __init__(self, owner):
