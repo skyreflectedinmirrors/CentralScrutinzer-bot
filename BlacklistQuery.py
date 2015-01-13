@@ -126,7 +126,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.line_splitter = re.compile("(  \n)|\n")
         self.quote_match = re.compile("^(\".+\",\\s*)*\".+\"$")
         self.whitespace = re.compile("\s")
-        self.force = re.compile(u"\\b--[fF]orce\\b")
+        self.force = re.compile(u"--[fF]orce\\b")
 
         self.message_cache = []
 
@@ -161,12 +161,15 @@ class BlacklistQuery(RedditThread.RedditThread):
                     end_index -= 1
                 if line[end_index] != '\"' and not force:
                     #missing closing quote, or some other garbage in between
-                    warn_entries.append(line[start_index + 1 : min(end_index + 10, len(line) - 1)])
+                    if not force:
+                        warn_entries.append(line[start_index + 1 : min(end_index + 10, len(line) - 1)])
                     continue
                 if start_index + 1 >= end_index:
                     return start_index + 1  # bad entry
-                if quote_count > 2 and not force:
-                    warn_entries.append(line[start_index + 1: end_index])
+                if quote_count > 2:
+                    if not force:
+                        warn_entries.append(line[start_index + 1: end_index])
+                    continue
                 else:
                     entries.append(line[start_index + 1: end_index])  # add entry to list
                 start_index = None
