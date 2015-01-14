@@ -35,7 +35,7 @@ class DefaultPolicy(object):
              '[^(Don\'t blame me, I\'m just a bot)](/r/centralscrutinizer)'.format(self.homesub, self.homesub))
 
     Historical_Scan_On_New_Database = True
-    Historical_Scan_On_Startup = True
+    Historical_Scan_On_Startup = False #now handled by it's own object
     Scan_Sub_Period = 5 * 60 #seconds
     Pause_Period = 5 * 60 #seconds
     Scan_Error_Pause = 5 * 60 #second
