@@ -41,7 +41,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         # last mod update
         self.last_mod_update = datetime.datetime.now()
 
-        #stolen/modified from Django
+        # stolen/modified from Django
         self.url_regex = re.compile(r'^https?://(?!.+https?://)'  # http:// or https:// (and only one on a line)
                                     r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?))'  # domain...
                                     r'(?:/?|[/?]\S+)$', re.IGNORECASE)
@@ -125,58 +125,64 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         self.line_splitter = re.compile("(  \n)|\n")
         self.quote_match = re.compile("^(\".+\",\\s*)*\".+\"$")
-        self.whitespace = re.compile("\s")
+        self.whitespace = re.compile("\\s")
+        self.comma_match = re.compile("^\\s*,")
         self.force = re.compile(u"--[fF]orce\\b")
-
+        self.line_end = re.compile("\\s*$")
+        self.escape_chars = re.compile("(\\\\)|(\\\\\")")
         self.message_cache = []
 
-    def quote_splitter(self, line, force = False):
+    def __is_escaped(self, i, line):
+        return i > 1 and line[i - 1] == '\\'
+
+    def __end_of_line(self, i, line):
+        return self.line_end.match(line[i:]) is not None
+
+    def __unescape(self, entry):
+        match = self.escape_chars.search(entry)
+        while match is not None:
+            group_num = 0 if match.group(0) is None else 1
+            entry = entry[:match.start(group_num)] + ("\\" if group_num == 0 else "\"") + \
+                    entry[match.end(group_num) + 1:]
+            match = self.escape_chars.search(entry)
+        return entry
+
+
+    def quote_splitter(self, line, force=False, warn_width=20):
         entries = []
-        warn_entries = []
-        in_quotes = False
+        error_entries = []
         start_index = None
-        quote_count = 0
         for i, char in enumerate(line):
-            if char == '\"':  # if we see a quote
-                if not in_quotes:  # if beginning quote
-                    if start_index is not None:
-                        return i #wasn't comma separated
-                    in_quotes = True
-                    quote_count = 1
-                    start_index = i
-                else:
-                    quote_count += 1
-                if i == len(line) - 1 and in_quotes:  # last entry -> no comma
-                    if quote_count > 2 and not force:
-                        warn_entries.append(line[start_index: i + 1])
+            escaped = self.__is_escaped(i, line)
+            if escaped:
+                # check character
+                if char != "\\" and char != "\"":
+                    error_entries.append(i)
+            elif char == "\"":
+                if start_index is not None:
+                    # final quote?
+                    if self.__end_of_line(i + 1, line):
+                        entries.append((start_index + 1, i))
+                    # followed by comma?
+                    elif self.comma_match.match(line[i + 1:]):
+                        entries.append((start_index + 1, i))
+                        start_index = None
+                    #otherwise it's an error
                     else:
-                        entries.append(line[start_index + 1: i])  # add entry to list
-            elif char == ',' and in_quotes:  # closing comma
-                #check that we're not at the beginning for some dumb reason
-                if i == 0:
-                    return i
-                #next make sure that the last non whitespace character was a closing quote
-                end_index = i - 1
-                while end_index > start_index + 1 and self.whitespace.match(line[end_index]):
-                    end_index -= 1
-                if line[end_index] != '\"' and not force:
-                    #missing closing quote, or some other garbage in between
-                    if not force:
-                        warn_entries.append(line[start_index + 1 : min(end_index + 10, len(line) - 1)])
-                    continue
-                if start_index + 1 >= end_index:
-                    return start_index + 1  # bad entry
-                if quote_count > 2:
-                    if not force:
-                        warn_entries.append(line[start_index + 1: end_index])
-                    continue
+                        error_entries.append(i)
                 else:
-                    entries.append(line[start_index + 1: end_index])  # add entry to list
-                start_index = None
-                in_quotes = False
-        if len(warn_entries):
-            return entries, warn_entries
-        return entries
+                    # start of a new id
+                    start_index = i
+
+        stringified = [line[tup[0]:tup[1]] for tup in entries]
+        if len(error_entries):
+            # go through and identify which entry each belongs to
+            for index, error_loc in enumerate(error_entries):
+                for i, entry in enumerate(entries):
+                    if entry[0] <= error_loc < entry[1]:
+                        error_entries[index] = stringified[i]
+            return stringified, error_entries
+        return stringified
 
     def shutdown(self):
         pass
@@ -310,7 +316,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                                                                             u"addition" if add else u"removal"), \
                                  u"Could not determine format of request.  For an id list, the first line must " \
                                  u"be a domain and all subsequent lines must be followed by comma separated ids in" \
-                                 u"quotes.  For a url list, there must be no comma separated ids.")
+                                 u" quotes.  For a url list, there must be no comma separated ids.")
             return False
 
         blist = None
@@ -328,7 +334,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                                  u"Could not determine valid domain from:  \n{}".format(lines[0]))
             return False
 
-        #check that if we do not have a url list, we indeed have a domain and other entries to add
+        # check that if we do not have a url list, we indeed have a domain and other entries to add
         if not url_list and len(lines) == 1:
             Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                             u"addition" if add else u"removal"), u"Invalid format detected, must have at least one channel id to {}\
@@ -340,36 +346,31 @@ class BlacklistQuery(RedditThread.RedditThread):
         invalid = []
         if not url_list:
             real_entries = []
-            #if we have an id list, we have to see if they're comma separated
+            # if we have an id list, we have to see if they're comma separated
             for entry in entries:
-                val = self.quote_splitter(entry, force_flag)
-                if isinstance(val, int):
-                    start = max(0, val - 20)
-                    end = min(val + 20, len(entry))
-                    #bad entry detected at index val
-                    Actions.send_message(self.praw, author, u"RE: {}list {}".format(
-                        u"black" if blacklist else u"white", u"addition" if add else u"removal"),
-                        u"Error in ID list detected:  \n" + entry[start:end] + u"\n\n" +
-                        u"".join([u" " for x in range(val - start + 3)]) + u"^" +
-                        u"".join([u" " for x in range(end - val)]))
-                    return False
-                elif isinstance(val, tuple):
-                    body =u"Warning: potential error(s) in ID list detected, **No action has been taken**.  \n" \
-                        u"More than two quotes or a comma has been found in the following entries:  \n"
-                    body += u"  \n".join(val[1])
-                    body += u"  \n  \nIf these entries have been correctly parsed, please resubmit your last query with " \
-                            u"the --force flag in the subject line."
-                    body += u"  \n  \n**Parsed entries**:  \n"
-                    body += u"  \n".join(val[0])
-                    Actions.send_message(self.praw, author, u"RE: {}list {}".format(
-                        u"black" if blacklist else u"white", u"addition" if add else u"removal"), body)
-                    return False
+                val = self.quote_splitter(entry, force=force_flag)
+                if isinstance(val, tuple):
+                    if force_flag:
+                        val = val[0]
+                    else:
+                        body = u"Warning: potential error(s) in ID list detected, **No action has been taken**.  \n" \
+                               u"Unescaped quotes or slashes (or simply malformed input) " \
+                               u"has been found in the following entries:    \n\n"
+                        body += u"  \n".join(val[1])
+                        body += u"  \n  \nIf these entries have been correctly parsed " \
+                                u"(note: any escaped characters have not been processed), " \
+                                u"please resubmit your last query with the --force flag in the subject line."
+                        body += u"  \n  \n**Parsed entries**:  \n"
+                        body += u"  \n".join(val[0])
+                        Actions.send_message(self.praw, author, u"RE: {}list {}".format(
+                            u"black" if blacklist else u"white", u"addition" if add else u"removal"), body)
+                        return False
                 if val:
-                    real_entries.extend([v.strip() for v in val if v and len(v.strip())])
+                    real_entries.extend([self.__unescape(v) for v in val])
                 else:
                     Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white" \
                         ), u"Cannot parse quoted identifiers:  \n{}".format(entry))
-            #copy back
+            # copy back
             entries = real_entries[:]
         else:
             real_entries = []
@@ -408,17 +409,17 @@ class BlacklistQuery(RedditThread.RedditThread):
             if url_list:
                 retstr += u"  \n".join(invalid)
             else:
-                retstr += u"  \n".join([u"id = {}, domain = {}  \n".format(id, self.lines[0]) for id in invalid])
-            #self.policy.debug(u"Invalid entry detected for message", retstr)
+                retstr += u"  \n".join([u"id = {}, domain = {}  \n".format(id, lines[0]) for id in invalid])
+            # self.policy.debug(u"Invalid entry detected for message", retstr)
             Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                             u"addition" if add else u"removal"), retstr)
             return False
 
         return Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
-                                                                        u"addition" if add else u"removal"),
-                             u"The following channels were successfully {} to the {} {}list  \n"
-                             u"{}".format(u"added" if add else u"remove", b.domains[0], u"black" if blacklist \
-                                 else u"white", u"  \n".join(entries)))
+                                                                               u"addition" if add else u"removal"),
+                                    u"The following channels were successfully {} to the {} {}list  \n"
+                                    u"{}".format(u"added" if add else u"remove", b.domains[0], u"black" if blacklist \
+                                        else u"white", u"  \n".join(entries)))
 
     def is_cached(self, id):
         """
@@ -447,10 +448,10 @@ class BlacklistQuery(RedditThread.RedditThread):
                 # update mods
                 elif matches[0] == self.update_command:
                     self.update_mods(message.author.name)
-                #print query
+                # print query
                 elif matches[0] == self.print_command:
                     result = self.__print(message.author.name, subject, text)
-                #help query
+                # help query
                 elif matches[0] == self.help_command:
                     Actions.send_message(self.praw, message.author.name, u"RE:{}".format(message.subject),
                                          self.doc_string)
