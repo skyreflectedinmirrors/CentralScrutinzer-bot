@@ -15,10 +15,8 @@ I'm not gonna tell you.  Of course, the code is publically available, so you kno
 ##Can I use the CentralScrutinizer on my subreddit?
 Yes!  You will need to run your own instance however.  The Central Scruitinzer depends on the following non-standard packages, which should be installed via pip:
 praw -- version >= 2.1.19
-requests -- version >= 2.4.3
 google-api-python-client -- version >= 1.3.1 (if not installed, youtube channels will not be monitered)
 soundcloud -- version >= 0.4.1 (if not installed, soundcloud channels will not be monitered)
-httplib2 -- version >= 0.9
 
 #Setup
 ##Credentials file
@@ -88,16 +86,6 @@ B: domain
 
 Note that each line (after the first domain line) should contain a comma separated list of quoted channel titles.  
 
-**A Note on channel titles with quotes/commas in them**  
-In order to prevent mistakes on the part of moderators, any id list containing an channel id with a quote or comma inside is not acted upon. Instead the offending ids are identified, and the CS bot will respond to you asking if you really meant to black/whitelist these id's.  
-This is to prevent a situation like the following:
-
-S: +blacklist  
-B: youtube.com  
-"Id1", "Id2" "Id3".... "IdN"
-
-From being parsed as: Id1, Id2" "Id3
-
 Example:  
 S: +whitelist  
 B: youtube.com  
@@ -114,6 +102,22 @@ B: youtube.com
 
 Result: Add arghdos, arghdos1, arghydos, arghydos1 to the youtube blacklist
 
+**A Note on channel ids with quotes or backslashes in them**  
+It is surprisingly difficult to parse a list of channel id's with at least one id with a quote mark inside.
+To solve this problem **all quotes and backslashes in channel id's must be escaped using a backslash character (\)**
+This is to prevent a situation like the following:
+
+S: +blacklist  
+B: youtube.com  
+"Id1", "Id2" "Id3".... "IdN"
+
+From being parsed automatically as Id1, Id2" "Id3 when it could easily be due to moderator mistake
+
+Let's say that the channel name was in fact Id2" "Id3.  The correct syntax in this case would be as follows:
+
+S: +blacklist  
+B: youtube.com  
+"Id1", "Id2\" \"Id3".... "IdN"
 
 ######Add by URL
 Optionally, instead of an ID list, you may simply send a URL for each channel you want to black/whitelist (one per line)
