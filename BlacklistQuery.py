@@ -193,7 +193,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                     # start of a new id
                     start_index = i
 
-        stringified = [line[tup[0]:tup[1]] for tup in entries]
+        stringified = [line[tup[0]:tup[1]] for tup in entries if tup[0] + 1 < tup[1]]
         if len(error_entries):
             # go through and identify which entry each belongs to
             for index, error_loc in enumerate(error_entries):
