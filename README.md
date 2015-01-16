@@ -135,6 +135,16 @@ https://www.youtube.com/watch?v=AYQjxZURQwE
 
 Result:  Add parkerh1288 and SanturronIdiota channels to the youtube whitelist
 
+**Note on Youtube channels**:
+There is no reliable way to turn a youtube channel of the form:
+youtube.com/user/USERNAME
+
+to
+
+www.youtube.com/channel/UC3yA8nDwraeOfnYfBWun83g
+
+Unfortunately a URL of the second form is required to interface with the youtube API.  Therefore it is easier to simply send a link to a video from that channel (as shown above)
+
 ###Remove
 Remove the specified channels from the black/whitelist.  Works very similarly to the add command.
 
