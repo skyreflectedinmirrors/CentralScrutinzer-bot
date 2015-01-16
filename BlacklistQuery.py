@@ -418,9 +418,9 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         return Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                                u"addition" if add else u"removal"),
-                                    u"The following channels were successfully {} to the {} {}list  \n"
-                                    u"{}".format(u"added" if add else u"remove", b.domains[0], u"black" if blacklist \
-                                        else u"white", u"  \n".join(entries)))
+                                    u"The following channels were successfully {} the {} {}list  \n"
+                                    u"{}".format(u"added to" if add else u"removed from", b.domains[0], u"black"
+                                    if blacklist else u"white", u"  \n".join(entries)))
 
     def is_cached(self, id):
         """
