@@ -130,7 +130,8 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.force = re.compile(u"--[fF]orce\\b")
         self.line_end = re.compile("\\s*$")
         self.escape_chars = re.compile("(\\\\)|(\\\\\")")
-        self.message_cache = []
+        self.saved_messages = []
+
 
     def __is_escaped(self, i, line):
         return i > 1 and line[i - 1] == '\\'
@@ -146,6 +147,24 @@ class BlacklistQuery(RedditThread.RedditThread):
                     entry[match.end(group_num) + 1:]
             match = self.escape_chars.search(entry)
         return entry
+
+    def __check_unsent(self):
+        failed = []
+        for x in self.saved_messages:
+            author, subject, body = x[:3]
+            if not self.__send_message(author, subject, body, save=False):
+                failed.append(x)
+
+        self.saved_messages = [x[:3] + (x[3] + 1, x[4]) for x in failed if x[3] < 5 and
+                               (datetime.datetime.now() - x[4]) < datetime.timedelta.days(1)]
+
+
+    def __send_message(self, author, subject, body, save=True):
+        resp = Actions.send_message(self.praw, author, subject, body)
+        if not resp and save:
+            self.saved_messages.append((author, subject, body, 0, datetime.datetime.now()))
+            self.log_error()
+        return resp
 
 
     def quote_splitter(self, line, force=False, warn_width=20):
@@ -167,7 +186,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                     elif self.comma_match.match(line[i + 1:]):
                         entries.append((start_index + 1, i))
                         start_index = None
-                    #otherwise it's an error
+                    # otherwise it's an error
                     else:
                         error_entries.append(i)
                 else:
@@ -201,12 +220,12 @@ class BlacklistQuery(RedditThread.RedditThread):
             self.mod_list = mlist
             self.last_mod_update = datetime.datetime.now()
             if author is not None:
-                Actions.send_message(self.praw, author, u"RE: Modlist update", u"Success!")
+                self.__send_message(author, u"RE: Modlist update", u"Success!")
             return True
         except Exception, e:
             if author is not None:
-                Actions.send_message(self.praw, author, u"RE: Modlist update",
-                                     u"Error encountered, please try again later.")
+                self.__send_message(author, u"RE: Modlist update",
+                                    u"Error encountered, please try again later.")
             logging.error(u"Could not update moderator list!")
             self.log_error()
             if __debug__:
@@ -229,15 +248,15 @@ class BlacklistQuery(RedditThread.RedditThread):
         if result:
             blacklist = False
         if blacklist is None:
-            Actions.send_message(self.praw, author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
-                                 u"Could not determine blacklist/whitelist from subject line  \n\
+            self.__send_message(author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
+                                u"Could not determine blacklist/whitelist from subject line  \n\
                                  Subject: {}".format(subject))
             return False
 
         # check that we have text
         lines = [l.strip() for l in self.line_splitter.split(text) if len(l.strip())]
         if not len(lines):
-            Actions.send_message(self.praw, author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
+            self.__send_message(author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
                                  u"No domain specified in text:  \n{}".format(text))
             return False
 
@@ -248,7 +267,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                 blist = b
                 break
         if not blist:
-            Actions.send_message(self.praw, author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
+            self.__send_message(author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
                                  u"Could not find valid domain specified in text:  \n{}".format(lines[0]))
             return False
 
@@ -262,7 +281,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         else:
             results = blist.get_whitelisted_channels(myfilter)
         if results is None:
-            Actions.send_message(self.praw, author, subject, u"Error querying blacklist, please submit bug report to \
+            self.__send_message(author, subject, u"Error querying blacklist, please submit bug report to \
                                  /r/centralscrutinizer")
             return False
         elif len(results):
@@ -274,7 +293,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         subject += u" w/ domain " + blist.domains[0]
         if myfilter:
             subject += u" and filter " + myfilter
-        Actions.send_message(self.praw, author, subject, u"Results:  \n" + out_str)
+        self.__send_message(author, subject, u"Results:  \n" + out_str)
         return True
 
 
@@ -297,7 +316,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         if result:
             blacklist = False
         if blacklist is None:
-            Actions.send_message(self.praw, author, u"RE: Black/whitelist add/removal", \
+            self.__send_message(author, u"RE: Black/whitelist add/removal", \
                                  u"Could not determine blacklist/whitelist from subject line", \
                                  u"Subject: {}".format(subject))
             return False
@@ -312,7 +331,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         elif not len(matches) and any(self.url_regex.match(l) for l in lines):
             url_list = True
         else:
-            Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
+            self.__send_message(author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                             u"addition" if add else u"removal"), \
                                  u"Could not determine format of request.  For an id list, the first line must " \
                                  u"be a domain and all subsequent lines must be followed by comma separated ids in" \
@@ -329,14 +348,14 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         # now check that we have a blacklist and url_list defined
         if blist is None:
-            Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
+            self.__send_message(author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                             u"addition" if add else u"removal"),
                                  u"Could not determine valid domain from:  \n{}".format(lines[0]))
             return False
 
         # check that if we do not have a url list, we indeed have a domain and other entries to add
         if not url_list and len(lines) == 1:
-            Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
+            self.__send_message(author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                             u"addition" if add else u"removal"), u"Invalid format detected, must have at least one channel id to {}\
                 from {}list for domain {}".format(u"add" if add else u"remove", u"black" if blacklist else u"white", \
                                                   self.lines[0]))
@@ -362,13 +381,13 @@ class BlacklistQuery(RedditThread.RedditThread):
                                 u"please resubmit your last query with the --force flag in the subject line."
                         body += u"  \n  \n**Parsed entries**:  \n"
                         body += u"  \n".join(val[0])
-                        Actions.send_message(self.praw, author, u"RE: {}list {}".format(
+                        self.__send_message(author, u"RE: {}list {}".format(
                             u"black" if blacklist else u"white", u"addition" if add else u"removal"), body)
                         return False
                 if val:
                     real_entries.extend([self.__unescape(v) for v in val])
                 else:
-                    Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white" \
+                    self.__send_message(author, u"RE: {}list {}".format(u"black" if blacklist else u"white" \
                         ), u"Cannot parse quoted identifiers:  \n{}".format(entry))
             # copy back
             entries = real_entries[:]
@@ -411,11 +430,11 @@ class BlacklistQuery(RedditThread.RedditThread):
             else:
                 retstr += u"  \n".join([u"id = {}, domain = {}  \n".format(id, lines[0]) for id in invalid])
             # self.policy.debug(u"Invalid entry detected for message", retstr)
-            Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
+            self.__send_message(author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                             u"addition" if add else u"removal"), retstr)
             return False
 
-        return Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
+        return self.__send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                                u"addition" if add else u"removal"),
                                     u"The following channels were successfully {} to the {} {}list  \n"
                                     u"{}".format(u"added" if add else u"remove", b.domains[0], u"black" if blacklist \
@@ -453,11 +472,11 @@ class BlacklistQuery(RedditThread.RedditThread):
                     result = self.__print(message.author.name, subject, text)
                 # help query
                 elif matches[0] == self.help_command:
-                    Actions.send_message(self.praw, message.author.name, u"RE:{}".format(message.subject),
+                    self.__send_message(self.praw, message.author.name, u"RE:{}".format(message.subject),
                                          self.doc_string)
 
             if len(matches) != 1:
-                Actions.send_message(self.praw, message.author.name, u"RE:{}".format(message.subject),
+                self.__send_message(self.praw, message.author.name, u"RE:{}".format(message.subject),
                                      u"Sorry, I did not recognize your query.  \n".format(text) + self.short_doc_string)
 
         self.message_cache.append(message.id)
@@ -470,6 +489,9 @@ class BlacklistQuery(RedditThread.RedditThread):
         while True:
             if not self.check_status():
                 break
+
+            # check for unsent messages
+            self.__check_unsent()
 
             # see if we need to update mods
             if datetime.datetime.now() - self.last_mod_update > self.policy.Mod_Update_Period:
