@@ -158,7 +158,7 @@ class Blacklist(object):
          :return: a list of ids not valid or not found"""
         return self.__remove_channels(ids, BlacklistEnums.Blacklisted)
 
-    def remove_whitelist_url(self, urls):
+    def remove_whitelist_urls(self, urls):
         """Removes channels from whitelist by URL
          :return: a list of urls not valid or not found"""
         return self.__remove_channels_url(urls, BlacklistEnums.Whitelisted)
