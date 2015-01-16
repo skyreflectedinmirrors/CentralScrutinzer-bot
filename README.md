@@ -104,7 +104,7 @@ Result: Add arghdos, arghdos1, arghydos, arghydos1 to the youtube blacklist
 
 **A Note on channel ids with quotes or backslashes in them**  
 It is surprisingly difficult to parse a list of channel id's with at least one id with a quote mark inside.
-To solve this problem **all quotes and backslashes in channel id's must be escaped using a backslash character (\)**
+To solve this problem **all quotes and backslashes in channel id's must be escaped using a backslash character (\\)**
 This is to prevent a situation like the following:
 
 S: +blacklist  
