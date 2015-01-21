@@ -236,7 +236,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             return False
 
         # check that we have text
-        lines = [l.strip() for l in self.line_splitter.split(text) if len(l.strip())]
+        lines = [l.strip() for l in self.line_splitter.split(text) if l is not None and len(l.strip())]
         if not len(lines):
             Actions.send_message(self.praw, author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
                                  u"No domain specified in text:  \n{}".format(text))
@@ -489,7 +489,9 @@ class BlacklistQuery(RedditThread.RedditThread):
                 for message in messages:
                     self.process_message(message)
                     if __debug__:
-                        logging.info(u"Blacklist query processing message:\n{}".format(message.body))
+                        logging.info(u"Blacklist query processing message from user {}.\nSubject:{}\nBody:{}".
+                                     format(message.author.name if message.author.name is not None else u"DELETED",
+                                            message.subject, message.body))
             except Exception, e:
                 logging.error(u"Error on retrieving unread messages")
                 if __debug__:
