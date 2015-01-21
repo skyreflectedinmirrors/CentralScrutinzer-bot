@@ -271,13 +271,14 @@ class SubScanner(RedditThread.RedditThread):
                 if post[2] is None:
                     continue
 
-                #if we've seen this before, skip
-                if exists[i]:
-                    continue
-
+                #did we go back far enough?
                 if datetime.datetime.fromtimestamp(post[0]) < self.last_seen - \
                         datetime.timedelta(seconds=2 * self.scan_period):
                     found_old = True
+
+                #if we've seen this before, skip
+                if exists[i]:
+                    continue
 
                 #don't look at old ones again
                 if self.__check_cached(post[1]):
@@ -292,7 +293,7 @@ class SubScanner(RedditThread.RedditThread):
 
 
         found_domain = self.__process_post_list(look_at)
-        found_old &= found_domain.count(True) == 0 or len(look_at) == 0
+        found_old &= (found_domain.count(True) == 0 or len(look_at) == 0)
 
         if found_old:
             return scan_result.FoundOld
