@@ -122,7 +122,7 @@ class SubScanner(RedditThread.RedditThread):
     def __process_post_list(self, post_list):
         """processes a list of posts
 
-        :param post_list: a list of post data of the form: [(post.created_utc, post.name, post.url, post) for post in posts if not post.is_self]
+        :param post_list: a list of post data of the form: (post.created_utc, post.name, post.url, post)
         :returns: A boolean for each post, each entry is True if processed, false if the post domain was not matched
         """
 
@@ -148,9 +148,11 @@ class SubScanner(RedditThread.RedditThread):
             for i, enum in enumerate(check):
                 index = indexes[i]
                 if enum == BlacklistEnums.Blacklisted:
+                    logging.info(u"Blacklist action taken on post {}".format(post_list[index][1]))
                     # self.policy.info_url(u"Blacklist action taken on post", post_list[index][1])
                     self.policy.on_blacklist(post_list[index][3])
                 if enum == BlacklistEnums.Whitelisted:
+                    logging.info(u"Whitelist action taken on post {}".format(post_list[index][1]))
                     # self.policy.info_url(u"Whitelist action taken on post", post_list[index][1])
                     self.policy.on_whitelist(post_list[index][3])
                 # add post to record
