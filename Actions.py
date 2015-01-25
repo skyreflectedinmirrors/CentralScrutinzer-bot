@@ -33,7 +33,7 @@ def make_post_url(sub, title, url, distinguish=False):
             logging.exception(e)
     return None
 
-def approve_post(post):
+def approve_post(self, post):
     try:
         post.approve()
         return True
@@ -43,7 +43,7 @@ def approve_post(post):
             logging.exception(e)
     return False
 
-def remove_post(post, mark_spam=True, delete=False):
+def remove_post(self, post, mark_spam=True, delete=False):
     try:
         if delete:
             post.delete()
