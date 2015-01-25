@@ -75,49 +75,8 @@ This will result a list of all blacklisted youtube channels that have a j follow
 
 ###Add
 Add a channel or list of channels by ID or url to the appropriate black or whitelists
-######Add by ID
-The add by ID feature adds a list of quoted, comma separated channel id's to the appropriate black/white list
-
-Syntax:  
-S: +[blacklist]/[whitelist]  
-B: domain  
-"Id1", "Id2", "Id3".... "IdN" --the first id list  
-"OtherID1", "OtherID2" ... "OtherID2" --another id list
-
-Note that each line (after the first domain line) should contain a comma separated list of quoted channel titles.  
-
-Example:  
-S: +whitelist  
-B: youtube.com  
-"arghdos"
-
-Result: Add the channel arghdos to the youtube whitelist
-
-
-Example:  
-S: +blacklist  
-B: youtube.com  
-"arghdos", "arghdos1"  
-"arghydos", "arghydos1"
-
-Result: Add arghdos, arghdos1, arghydos, arghydos1 to the youtube blacklist
-
-**A Note on channel ids with quotes or backslashes in them**  
-It is surprisingly difficult to parse a list of channel id's with at least one id with a quote mark inside.
-To solve this problem **all quotes and backslashes in channel id's must be escaped using a backslash character (\\)**
-This is to prevent a situation like the following:
-
-S: +blacklist  
-B: youtube.com  
-"Id1", "Id2" "Id3".... "IdN"
-
-From being parsed automatically as Id1, Id2" "Id3 when it could easily be due to moderator mistake
-
-Let's say that the channel name was in fact Id2" "Id3.  The correct syntax in this case would be as follows:
-
-S: +blacklist  
-B: youtube.com  
-"Id1", "Id2\" \"Id3".... "IdN"
+#######Add by ID
+This feature is no longer supported.  This is to prevent moderators from adding incorrect IDs by mistake (for example, by not knowing exactly which soundcloud id the bot is look for, which isn't always obvious).  Adding by URL ensures that the correct ID is obtained for all channels.
 
 ######Add by URL
 Optionally, instead of an ID list, you may simply send a URL for each channel you want to black/whitelist (one per line)
@@ -156,6 +115,8 @@ B: domain
 "Id1", "Id2", "Id3".... "IdN" --the first id list  
 "OtherID1", "OtherID2" ... "OtherID2" --another id list
 
+Note that each line (after the first domain line) should contain a comma separated list of quoted channel titles.  
+
 Example:  
 S: -whitelist  
 B: youtube.com  
@@ -163,14 +124,38 @@ B: youtube.com
 
 Result: remove arghdos from the youtube whitelist
 
+Example:  
+S: -blacklist  
+B: youtube.com  
+"arghdos", "arghdos1"  
+"arghydos", "arghydos1"
+
+Result: Remove arghdos, arghdos1, arghydos, arghydos1 to the youtube blacklist
+
+**A Note on channel ids with quotes or backslashes in them**  
+It is surprisingly difficult to parse a list of channel id's with at least one id with a quote mark inside.
+To solve this problem **all quotes and backslashes in channel id's must be escaped using a backslash character (\\)**
+This is to prevent a situation like the following:
+
+S: -blacklist  
+B: youtube.com  
+"Id1", "Id2" "Id3".... "IdN"
+
+From being parsed automatically as Id1, Id2" "Id3 when it could easily be due to moderator mistake
+
+Let's say that the channel name was in fact Id2" "Id3.  The correct syntax in this case would be as follows:
+
+S: -blacklist  
+B: youtube.com  
+"Id1", "Id2\" \"Id3".... "IdN"
+
 ######By URL
 Example:  
-S: +whitelist  
+S: -whitelist  
 B: https://www.youtube.com/watch?v=fVIFmej6VZg  
 https://www.youtube.com/watch?v=AYQjxZURQwE
 
 Result:  Remove parkerh1288 and SanturronIdiota channels to the youtube whitelist
-
 
 ###Update Mods
 Updates the valid mod list (from whom the CS will accept commands).  This is done automatically every day (by default), but you can trigger it manually after adding new mods

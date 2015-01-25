@@ -320,16 +320,24 @@ class BlacklistQuery(RedditThread.RedditThread):
                                  u" quotes.  For a url list, there must be no comma separated ids.")
             return False
 
+        if add and not url_list:
+            Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
+                                                                            u"addition" if add else u"removal"), \
+                                 u"Addition of {}list entries by id is no longer supported.  Please add by URL instead"
+                                .format(u"black" if blacklist else u"white"))
+            return False
+
         blist = None
-        # test the first line to get appropriate blacklist
-        for b in self.blacklists:
-            if b.check_domain(lines[0]):
-                # store b
-                blist = b
-                break
+        if not url_list:
+            # test the first line to get appropriate blacklist
+            for b in self.blacklists:
+                if b.check_domain(lines[0]):
+                    # store b
+                    blist = b
+                    break
 
         # now check that we have a blacklist and url_list defined
-        if blist is None:
+        if blist is None and not url_list:
             Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                             u"addition" if add else u"removal"),
                                  u"Could not determine valid domain from:  \n{}".format(lines[0]))
@@ -344,7 +352,9 @@ class BlacklistQuery(RedditThread.RedditThread):
             return False
 
         entries = lines if url_list else lines[1:]
-        invalid = []
+        invalid_ids = []
+        invalid_urls = []
+        valid_ids = []
         if not url_list:
             real_entries = []
             # if we have an id list, we have to see if they're comma separated
@@ -379,48 +389,73 @@ class BlacklistQuery(RedditThread.RedditThread):
                 if self.url_regex.match(entry) and Actions.resolve_url(entry):
                     real_entries.append(entry)
                 else:
-                    invalid.append(entry)
+                    invalid_urls.append(entry)
             entries = real_entries[:]
 
-        if blacklist:
-            if add:
-                if url_list:
-                    invalid += b.add_blacklist_urls(entries)
+        if url_list:
+            found = [False for u in entries]
+            for blist in self.blacklists:
+                this_list = []
+                for i, url in enumerate(entries):
+                    found[i] = True
+                    if blist.check_domain(url):
+                        this_list.append(url)
+
+                if not len(this_list):
+                    continue
+                if blacklist:
+                    if add:
+                        bad_urls, bad_ids, good_ids = blist.add_blacklist_urls(entries)
+                    else:
+                        bad_urls, bad_ids, good_ids = blist.remove_blacklist_urls(entries)
                 else:
-                    invalid += b.add_blacklist(entries)
-            else:
-                if url_list:
-                    invalid += b.remove_blacklist_urls(entries)
-                else:
-                    invalid += b.add_blacklist(entries)
+                    if add:
+                        bad_urls, bad_ids, good_ids = blist.add_whitelist_urls(entries)
+                    else:
+                        bad_urls, bad_ids, good_ids = blist.remove_whitelist_urls(entries)
+            invalid_urls += bad_urls
+            invalid_ids += [(b, blist.domains[0]) for b in bad_ids]
+            valid_ids += good_ids
         else:
-            if add:
-                if url_list:
-                    invalid += b.add_whitelist_urls(entries)
+            if blacklist:
+                if add:
+                    #no longer accepted
+                    invalid_ids += entries
+                    #invalid += blist.add_blacklist(entries)
                 else:
-                    invalid += b.add_whitelist(entries)
+                    invalid_ids += blist.add_blacklist(entries)
             else:
-                if url_list:
-                    invalid += b.remove_whitelist_urls(entries)
+                if add:
+                    invalid_ids += blist.add_whitelist(entries)
                 else:
-                    invalid += b.add_whitelist(entries)
+                    invalid_ids += blist.add_whitelist(entries)
+            valid_ids = [v for v in entries if not v in invalid_ids]
 
-        if invalid is not None and len(invalid):
-            retstr = u"Invalid {} detected:  \n".format(u"urls" if url_list else u"ids")
+        invalid_str = u""
+        if invalid_ids is not None and len(invalid_ids):
             if url_list:
-                retstr += u"  \n".join(invalid)
+                invalid_str += u"Failed to add the following ids:  \n"
+                invalid_str += u"  \n".join([u"id = {},domain={}".format(inv[0],  inv[1]) for inv in invalid_ids])
             else:
-                retstr += u"  \n".join([u"id = {}, domain = {}  \n".format(id, lines[0]) for id in invalid])
-            # self.policy.debug(u"Invalid entry detected for message", retstr)
-            Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
-                                                                            u"addition" if add else u"removal"), retstr)
-            return False
+                invalid_str += u"Failed to add the following ids:  \n"
+                invalid_str += u"  \n".join([u"id = {}, domain={}".format(inv[0],  lines[0]) for inv in invalid_ids])
 
+        if invalid_urls is not None and len(invalid_urls):
+            invalid_str += u"Invalid urls detected:  \n"
+            invalid_str += u"  \n".join(invalid_urls)
+
+        retstr = u""
+        if valid_ids is not None and len(valid_ids):
+            retstr = u"The following channels were successfully {} the {} {}list  \n" \
+                        u"{}".format(u"added to" if add else u"removed from", b.domains[0], u"black" \
+                        if blacklist else u"white", u"  \n".join(valid_ids))
+        if len(invalid_str):
+            if len(retstr):
+                retstr += u"  \n"
+            retstr += invalid_str
         return Actions.send_message(self.praw, author, u"RE: {}list {}".format(u"black" if blacklist else u"white", \
                                                                                u"addition" if add else u"removal"),
-                                    u"The following channels were successfully {} the {} {}list  \n"
-                                    u"{}".format(u"added to" if add else u"removed from", b.domains[0], u"black"
-                                    if blacklist else u"white", u"  \n".join(entries)))
+                                    retstr)
 
     def is_cached(self, id):
         """
