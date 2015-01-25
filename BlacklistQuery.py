@@ -397,8 +397,8 @@ class BlacklistQuery(RedditThread.RedditThread):
             for blist in self.blacklists:
                 this_list = []
                 for i, url in enumerate(entries):
-                    found[i] = True
                     if blist.check_domain(url):
+                        found[i] = True
                         this_list.append(url)
 
                 if not len(this_list):
@@ -413,9 +413,10 @@ class BlacklistQuery(RedditThread.RedditThread):
                         bad_urls, bad_ids, good_ids = blist.add_whitelist_urls(entries)
                     else:
                         bad_urls, bad_ids, good_ids = blist.remove_whitelist_urls(entries)
-            invalid_urls += bad_urls
-            invalid_ids += [(b, blist.domains[0]) for b in bad_ids]
-            valid_ids += good_ids
+                invalid_urls += bad_urls
+                invalid_ids += [(b, blist.domains[0]) for b in bad_ids]
+                valid_ids += [(g, blist.domains[0]) for g in good_ids]
+            invalid_urls += [url for i, url in enumerate(entries) if not found[i]]
         else:
             if blacklist:
                 if add:
@@ -429,7 +430,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                     invalid_ids += blist.add_whitelist(entries)
                 else:
                     invalid_ids += blist.add_whitelist(entries)
-            valid_ids = [v for v in entries if not v in invalid_ids]
+            valid_ids = [(v, lines[0]) for v in entries if not v in invalid_ids]
 
         invalid_str = u""
         if invalid_ids is not None and len(invalid_ids):
@@ -446,9 +447,10 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         retstr = u""
         if valid_ids is not None and len(valid_ids):
-            retstr = u"The following channels were successfully {} the {} {}list  \n" \
-                        u"{}".format(u"added to" if add else u"removed from", b.domains[0], u"black" \
-                        if blacklist else u"white", u"  \n".join(valid_ids))
+            retstr = u"The following channels were successfully {} the {}list  \n" \
+                        u"{}".format(u"added to" if add else u"removed from the", u"black" \
+                        if blacklist else u"white", u"  \n".join([u"id = {}, domain={}".format(v[0], v[1])
+                                                                  for v in valid_ids]))
         if len(invalid_str):
             if len(retstr):
                 retstr += u"  \n"
