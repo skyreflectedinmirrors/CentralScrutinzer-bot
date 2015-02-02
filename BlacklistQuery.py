@@ -299,7 +299,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             blacklist = False
         if blacklist is None:
             Actions.send_message(self.praw, author, u"RE: Black/whitelist add/removal", \
-                                 u"Could not determine blacklist/whitelist from subject line", \
+                                 u"Could not determine blacklist/whitelist from subject line  \n" \
                                  u"Subject: {}".format(subject))
             return False
 
