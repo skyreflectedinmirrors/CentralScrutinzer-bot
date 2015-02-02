@@ -175,9 +175,9 @@ class Blacklist(object):
         my_urls, invalid_urls = self.__split_on_condition(urls, self.check_domain)
         #get ids
         ids = [self.data.channel_id(url) for url in my_urls]
-        valid_ids, invalid_ids = self.__split_on_condition_altlist(ids, lambda x: x and x[0] != "PRIVATE", my_urls)
+        valid_ids, unresolvable_urls = self.__split_on_condition_altlist(ids, lambda x: x and x[0] != "PRIVATE", my_urls)
         failed_ids = self.__add_channels([v[0] for v in valid_ids], value)
-        return (invalid_urls, invalid_ids + failed_ids, [v[0] for v in valid_ids if not v[0] in failed_ids])
+        return (invalid_urls + unresolvable_urls, failed_ids, [v[0] for v in valid_ids if not v[0] in failed_ids])
 
     def __remove_channels_url(self, urls, value):
         if not isinstance(urls, list):
