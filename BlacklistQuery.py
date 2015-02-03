@@ -405,14 +405,14 @@ class BlacklistQuery(RedditThread.RedditThread):
                     continue
                 if blacklist:
                     if add:
-                        bad_urls, bad_ids, good_ids = blist.add_blacklist_urls(entries)
+                        bad_urls, bad_ids, good_ids = blist.add_blacklist_urls(this_list)
                     else:
-                        bad_urls, bad_ids, good_ids = blist.remove_blacklist_urls(entries)
+                        bad_urls, bad_ids, good_ids = blist.remove_blacklist_urls(this_list)
                 else:
                     if add:
-                        bad_urls, bad_ids, good_ids = blist.add_whitelist_urls(entries)
+                        bad_urls, bad_ids, good_ids = blist.add_whitelist_urls(this_list)
                     else:
-                        bad_urls, bad_ids, good_ids = blist.remove_whitelist_urls(entries)
+                        bad_urls, bad_ids, good_ids = blist.remove_whitelist_urls(this_list)
                 invalid_urls += bad_urls
                 invalid_ids += [(b, blist.domains[0]) for b in bad_ids]
                 valid_ids += [(g, blist.domains[0]) for g in good_ids]
