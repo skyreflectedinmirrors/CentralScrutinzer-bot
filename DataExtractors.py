@@ -45,7 +45,7 @@ class SoundCloudExtractor(IdentificationExtractor):
             #resolve the url
             response = self.soundcloud.get('/resolve', url=url)
         except Exception, e:
-            logging.error("Bad resolve for soundcloud " + str(url))
+            logging.error(u"Bad resolve for soundcloud " + str(url))
             return None
 
         try:
@@ -101,7 +101,7 @@ class YoutubeExtractor(IdentificationExtractor):
             #try it as a channel
             channel_id = id
         except Exception, e:
-            logging.error("Unknown error detecting channelId for youtube url " + str(url))
+            logging.error(u"Unknown error detecting channelId for youtube url " + str(url))
 
 
          #avoid asking if the ID is marked PRIVATE
@@ -112,7 +112,7 @@ class YoutubeExtractor(IdentificationExtractor):
         try:
             response = self.youtube.channels().list(part='snippet', id=channel_id).execute()
         except apiclient.errors.HttpError:
-            logging.error("Bad request for youtube channel id " + str(channel_id))
+            logging.error(u"Bad request for youtube channel id " + str(channel_id))
             return None
 
         try:
