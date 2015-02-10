@@ -203,12 +203,14 @@ class SubScanner(RedditThread.RedditThread):
                         logging.error(str(e))
                         if __debug__:
                             logging.exception(e)
-                    return None
+                    #temporary fix to avoid endless waiting while RA is down
+                    return []
                 except Exception, e:
                     logging.error(str(e))
                     if __debug__:
                         logging.exception(e)
-                    return None
+                    #temporary fix to avoid endless waiting while RA is down
+                    return []
         else:
             posts = Actions.get_posts(self.sub, 900)
             if posts is None:
