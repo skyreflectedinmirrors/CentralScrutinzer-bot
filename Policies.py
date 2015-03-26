@@ -52,7 +52,7 @@ class DefaultPolicy(object):
     on_blacklist = Actions.remove_post
     on_whitelist = lambda x, y: logging.info("Whitelisting {}".format(y.name)) #Actions.approve_post
     Strike_Count_Max = 3 #three strikes, and you're out
-    Use_Reddit_Analytics_For_Historical_Scan = True #much more detailed history (normally)
+    Use_Reddit_Analytics_For_Historical_Scan = False #much more detailed history (normally), currently RA seems offline
     Historial_Scan_Period = 24 * 60 * 60 # 1 day
 
     def debug(self, message, text=u""):
