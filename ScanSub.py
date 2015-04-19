@@ -135,15 +135,30 @@ class SubScanner(RedditThread.RedditThread):
             if not len(temp):
                 continue
             indexes, my_urls = zip(*temp)
+
+            #mark the posts as found/processed
+            for index in indexes:
+                found_domain[index] = True
+
+            #check viewcount limits
+            #note, a video above viewcount limits and on a blacklisted channel may be removed twice
+            #This is more inefficient, but is the only way ensure that the correct action will be taken
+            # (given that the user can sub out the blacklist / viewcount action)
+            if self.policy.viewcount_limit is not None:
+                for i, url in enumerate(my_urls):
+                    viewcount = blacklist.data.get_views(url)
+                    index = indexes[i]
+                    if viewcount > self.policy.viewcount_limit:
+                        self.policy.on_viewcount(post_list[index][3], blacklist.name, viewcount)
+
+            #get channel ids
             channel_data = [blacklist.data.channel_id(url) for url in my_urls]
             temp = [(indexes[i], channel[0]) for i, channel in enumerate(channel_data) if channel is not None]
             if not len(temp):
                 # avoid zipping an empty list
                 continue
             indexes, channel_ids = zip(*temp)
-            #mark the posts as found/processed
-            for index in indexes:
-                found_domain[index] = True
+
             check = blacklist.check_blacklist(ids=channel_ids)
             for i, enum in enumerate(check):
                 index = indexes[i]

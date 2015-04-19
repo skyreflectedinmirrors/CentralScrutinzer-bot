@@ -26,13 +26,14 @@ class DefaultPolicy(object):
     def __init__(self, homesub):
         self.homesub = homesub
 
-    def remove_and_post(self, post):
-        Actions.remove_post(post)
-        Actions.make_comment(post,
-             'This channel has been blacklisted on /r/{}.  For more details '
-             'please [contact the moderators](http://www.reddit.com/message/compose?to=/r/{}&subject='
-             'Why is this channel blacklisted?)  \n'
-             '[^(Don\'t blame me, I\'m just a bot)](/r/centralscrutinizer)'.format(self.homesub, self.homesub))
+    def format_viewcount(self, poster, website, viewcount):
+        return 'All apologies /u/{} but your post has been automatically removed because the artist has too many {} plays. The maximum is {}, this link has {}.'.format(poster, website, self.viewcount_limit, viewcount) + \
+        'If you think this is in error, please contact the mods. If you\'re new to the subreddit, please read the full list of removal reasons.'
+        'Don\'t blame me, I\'m just a bot.'
+
+    def remove_and_post(self, post, comment):
+        Actions.remove_post(self, post)
+        Actions.make_comment(post, comment)
 
     Historical_Scan_On_New_Database = True
     Historical_Scan_On_Startup = False #now handled by it's own object
@@ -51,9 +52,13 @@ class DefaultPolicy(object):
     Strike_Counter_Frequency = 12 * 60 * 60 #every 12 hrs
     on_blacklist = Actions.remove_post
     on_whitelist = lambda x, y: logging.info("Whitelisting {}".format(y.name)) #Actions.approve_post
+    def on_viewcount(self, post, website, viewcount):
+        self.remove_and_post(post, self.format_viewcount(Actions.get_username(post), website, viewcount))
+
     Strike_Count_Max = 3 #three strikes, and you're out
     Use_Reddit_Analytics_For_Historical_Scan = False #much more detailed history (normally), currently RA seems offline
     Historial_Scan_Period = 24 * 60 * 60 # 1 day
+    viewcount_limit = None#500000 #if the number of views is over this, the post will be subjected to the popularity action, Set to None to turn off!
 
     def debug(self, message, text=u""):
         logging.debug(message + u"\t" + text)

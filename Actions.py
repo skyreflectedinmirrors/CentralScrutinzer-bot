@@ -218,6 +218,12 @@ def xpost(post, other_sub, comment):
             logging.exception(e)
         return False
 
+def get_username(post):
+    try:
+        return post.author.name
+    except:
+        return 'PRIVATE'
+
 def get_by_ids(reddit, id_list):
     """ Gets a list of posts by submission id
 

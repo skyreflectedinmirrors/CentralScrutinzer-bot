@@ -18,7 +18,6 @@ class BlacklistEnums:
 class Blacklist(object):
     """ Also a whitelist, but who's counting
     @type data IdentificationExtractor
-    @type wiki WikiPage
     """
     def __init__(self, data_extractor, database_file):
         assert(isinstance(data_extractor, IdentificationExtractor))
@@ -31,6 +30,7 @@ class Blacklist(object):
         #make sure database is created
         with DataBase.DataBaseWrapper(self.file) as db:
             pass
+
 
     def check_blacklist(self, urls=None, ids=None):
         """ This method tells you whether each in a list of submission is on a blacklisted channel. Either ids or urls must be specified

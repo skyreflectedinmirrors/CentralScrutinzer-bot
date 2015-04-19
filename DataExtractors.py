@@ -24,6 +24,14 @@ class IdentificationExtractor(object):
         """
         raise NotImplementedError
 
+    def get_views(self, url):
+        """Returns the number of views for a video
+
+        :param url: The video url
+        :return: the number of views for the video
+        """
+        raise NotImplementedError
+
 
 
 
@@ -59,6 +67,29 @@ class SoundCloudExtractor(IdentificationExtractor):
         except Exception, e:
             logging.error(u"Could not find soundcloud username or permalink for url: {}".format(url))
             logging.debug(str(e))
+
+    def get_views(self, url):
+        #query server
+        response = None
+        try:
+            #resolve the url
+            response = self.soundcloud.get('/resolve', url=url)
+        except Exception, e:
+            logging.error(u"Bad resolve for soundcloud " + str(url))
+            return None
+
+        try:
+            return response.playback_count
+        except AttributeError:
+            try:
+                return response.user['playback_count']
+            except AttributeError:
+                logging.info(u"Deleted or private soundcloud user requested: {}".format(url))
+                return None
+        except Exception, e:
+            logging.error(u"Could not find soundcloud username or permalink for url: {}".format(url))
+            logging.debug(str(e))
+        return None
 
 
 class YoutubeExtractor(IdentificationExtractor):
@@ -149,6 +180,29 @@ class YoutubeExtractor(IdentificationExtractor):
             return yt_id
         return None
 
+    def get_views(self, url):
+        id = self.__get_video_id(url)
+        if not id:
+            return None
+
+        #query server
+        response = None
+        try:
+            response = self.youtube.videos().list(part='statistics', id=id).execute()
+        except apiclient.errors.HttpError:
+            logging.info(u"Could not determine views for video: {}".format(id))
+
+        viewcount = None
+        try:
+            viewcount = response.get("items")[0].get("statistics").get("viewCount")
+        except IndexError:
+            logging.error(u"No items found for youtube id {}".format(id))
+        except Exception, e:
+            logging.error(u"Unknown error detecting viewCount for youtube url " + str(url))
+
+        return int(viewcount)
+
+
 from utilitymethods import domain_extractor
 class BandCampExtractor(IdentificationExtractor):
     def __init__(self):
@@ -168,3 +222,6 @@ class BandCampExtractor(IdentificationExtractor):
         except:
             logging.error(u"Bad domain extracted from {}".format(url))
             return None
+
+    def get_views(self, url):
+        return None
