@@ -56,13 +56,13 @@ class CentralScrutinizer(object):
 
         #first try to create all the data extractors
         try:
-            youtube = DataExtractors.YoutubeExtractor(credentials['GOOGLEID'])
+            youtube = DataExtractors.YoutubeExtractor(credentials['GOOGLEID'], policy)
         except Exception, e:
             logging.critical("Could not create Youtube data extractor!")
             logging.debug(str(e))
 
         try:
-            soundcloud = DataExtractors.SoundCloudExtractor(credentials['SOUNDCLOUDID'])
+            soundcloud = DataExtractors.SoundCloudExtractor(credentials['SOUNDCLOUDID'], policy)
         except Exception, e:
             logging.critical("Could not create Soundcloud data extractor!")
             logging.debug(str(e))

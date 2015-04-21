@@ -12,9 +12,10 @@ import utilitymethods
 
 #base class for extractors
 class IdentificationExtractor(object):
-    def __init__(self, name, domains):
+    def __init__(self, name, domains, viewcount_limit=None):
         self.name = name
         self.domains = [d.lower() for d in domains]
+        self.viewcount_limit = viewcount_limit
 
     def channel_id(self, url):
         """returns the channel id from the url
@@ -36,8 +37,8 @@ class IdentificationExtractor(object):
 
 
 class SoundCloudExtractor(IdentificationExtractor):
-    def __init__(self, key):
-        super(SoundCloudExtractor, self).__init__("soundcloud", ["soundcloud.com", "snd.sc"])
+    def __init__(self, key, policy):
+        super(SoundCloudExtractor, self).__init__("soundcloud", ["soundcloud.com", "snd.sc"], policy.soundcloud_viewcount_limit)
         self.soundcloud = soundcloud.Client(client_id=key)
 
     def channel_id(self, url):
@@ -93,8 +94,8 @@ class SoundCloudExtractor(IdentificationExtractor):
 
 
 class YoutubeExtractor(IdentificationExtractor):
-    def __init__(self, key):
-        super(YoutubeExtractor, self).__init__("youtube", ['youtube.com', 'youtu.be', 'm.youtube.com'])
+    def __init__(self, key, policy):
+        super(YoutubeExtractor, self).__init__("youtube", ['youtube.com', 'youtu.be', 'm.youtube.com'], policy.youtube_viewcount_limit)
         self.base_url = 'https://www.googleapis.com/youtube/v3'
         self.videos_url = '/videos/'
         self.key = key

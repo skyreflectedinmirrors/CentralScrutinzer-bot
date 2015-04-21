@@ -105,8 +105,8 @@ class SubScanner(RedditThread.RedditThread):
         self.cached_posts = []
 
         #create praw
-        self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
-        self.sub = utilitymethods.get_subreddit(self.owner.credentials, self.praw)
+        #self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
+        #self.sub = utilitymethods.get_subreddit(self.owner.credentials, self.praw)
 
         self.scan_period = self.policy.Scan_Sub_Period
 
@@ -144,7 +144,7 @@ class SubScanner(RedditThread.RedditThread):
             #note, a video above viewcount limits and on a blacklisted channel may be removed twice
             #This is more inefficient, but is the only way ensure that the correct action will be taken
             # (given that the user can sub out the blacklist / viewcount action)
-            if self.policy.viewcount_limit is not None:
+            if blacklist.data.viewcount_limit is not None:
                 for i, url in enumerate(my_urls):
                     viewcount = blacklist.data.get_views(url)
                     index = indexes[i]

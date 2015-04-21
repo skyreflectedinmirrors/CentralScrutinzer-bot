@@ -52,13 +52,14 @@ class DefaultPolicy(object):
     Strike_Counter_Frequency = 12 * 60 * 60 #every 12 hrs
     on_blacklist = Actions.remove_post
     on_whitelist = lambda x, y: logging.info("Whitelisting {}".format(y.name)) #Actions.approve_post
+    youtube_viewcount_limit = 500000
+    soundcloud_viewcount_limit = None #still taken care of by raddit-bot
     def on_viewcount(self, post, website, viewcount):
         self.remove_and_post(post, self.format_viewcount(Actions.get_username(post), website, viewcount))
 
     Strike_Count_Max = 3 #three strikes, and you're out
     Use_Reddit_Analytics_For_Historical_Scan = False #much more detailed history (normally), currently RA seems offline
     Historial_Scan_Period = 24 * 60 * 60 # 1 day
-    viewcount_limit = None#500000 #if the number of views is over this, the post will be subjected to the popularity action, Set to None to turn off!
 
     def debug(self, message, text=u""):
         logging.debug(message + u"\t" + text)
