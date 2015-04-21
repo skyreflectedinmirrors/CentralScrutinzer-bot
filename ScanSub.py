@@ -148,7 +148,7 @@ class SubScanner(RedditThread.RedditThread):
                 for i, url in enumerate(my_urls):
                     viewcount = blacklist.data.get_views(url)
                     index = indexes[i]
-                    if viewcount > self.policy.viewcount_limit:
+                    if viewcount > blacklist.data.viewcount_limit:
                         self.policy.on_viewcount(post_list[index][3], blacklist.name, viewcount)
 
             #get channel ids
