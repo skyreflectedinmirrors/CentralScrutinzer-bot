@@ -4,6 +4,7 @@ TestCredentials.cred
 error.log
 /.idea
 test.py
+Todo.txt
 
 #database file
 *.db
