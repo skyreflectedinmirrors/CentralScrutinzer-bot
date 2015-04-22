@@ -90,9 +90,11 @@ def get_posts(sub, limit=20):
     return None
 
 
-def make_comment(post, text):
+def make_comment(post, text, dist=False):
     try:
         comment = post.add_comment(text)
+        if dist:
+            comment.distinguish()
         return comment
     except Exception, e:
         logging.error("Comment " + text + " was not made successfully!")
