@@ -105,7 +105,7 @@ class StrikeCounter(RedditThread.RedditThread):
             if channels and len(channels):
                 if __debug__:
                     logging.info("{} new channels added to the blacklist".format(len(channels)))
-                db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted)
+                db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'])
 
             #find posts older than scan period marked as processed
             old_date = datetime.datetime.now() - self.policy.Strike_Counter_Scan_History

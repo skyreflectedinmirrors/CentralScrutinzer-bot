@@ -43,6 +43,7 @@ class DataBaseWrapper(object):
                     domain text,
                     blacklist integer default 0,
                     strike_count integer default 0,
+                    added_by text,
                     primary key(channel_id, domain))''')
                     try:
                         self.cursor.execute('create index blist on channel_record(blacklist)')
@@ -64,6 +65,7 @@ class DataBaseWrapper(object):
                     channel_id text,
                     domain text,
                     processed integer default 0,
+                    submitter text,
                     date_added timestamp default current_timestamp)''')
                     try:
                         self.cursor.execute('create index channel on reddit_record(channel_id, domain)')
@@ -80,6 +82,15 @@ class DataBaseWrapper(object):
                             pass
                         else:
                             logging.critical("Could not create index mydate on table reddit_record")
+                            logging.debug(str(e))
+
+                    try:
+                        self.cursor.execute('create index submit on reddit_record(submitter)')
+                    except sqlite3.OperationalError, e:
+                        if str(e) == "index submit already exists":
+                            pass
+                        else:
+                            logging.critical("Could not create index submit on table reddit_record")
                             logging.debug(str(e))
 
                     self.db.commit()
@@ -132,7 +143,7 @@ class DataBaseWrapper(object):
             def add_reddit(self, reddit_entries):
                 """adds the supplied reddit entries to the reddit_record
 
-                :param reddit_entries: a list of tuples consisting of (short_url, channel_id, domain, date_added)
+                :param reddit_entries: a list of tuples consisting of (short_url, channel_id, domain, date_added, submitter)
                 :return:
                 """
                 try:
@@ -140,18 +151,18 @@ class DataBaseWrapper(object):
                         reddit_entries = list(reddit_entries)
                     reddit_entries = [(e,) if not isinstance(e, tuple) else e for e in reddit_entries]
                     self.cursor.executemany(
-                        '''insert or ignore into reddit_record (short_url, channel_id, domain, date_added) values(?, ?, ?, ?)''',
+                        '''insert or ignore into reddit_record (short_url, channel_id, domain, date_added, submitter) values(?, ?, ?, ?, ?)''',
                         reddit_entries)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Could not add reddit entries to database")
                     logging.debug(str(e))
 
-            def get_reddit(self, channel_id=None, domain=None, date_added=None, processed=None, return_channel_id=True,
-                           return_domain=True, return_dateadded=False):
+            def get_reddit(self, channel_id=None, domain=None, date_added=None, processed=None, submitter=None,
+                           return_channel_id=True, return_domain=True, return_dateadded=False, return_submitter=False):
                 """returns a list of reddit entries matching the provided search modifiers (i.e. channel_id, domain, date_added)
 
-                :returns: a list of tuples of the form (short_url, channel_id*, domain*, date_added* (*if specified))
+                :returns: a list of tuples of the form (short_url, channel_id*, domain*, date_added*, submitter* (*if specified))
                 """
                 query = 'select short_url'
                 arglist = []
@@ -161,6 +172,8 @@ class DataBaseWrapper(object):
                     query += ', domain'
                 if return_dateadded:
                     query += ', date_added'
+                if return_submitter:
+                    query += ', submitter'
                 query += ' from reddit_record where '
                 if channel_id is not None:
                     query += 'channel_id = ?'
@@ -180,6 +193,11 @@ class DataBaseWrapper(object):
                         query += ' and '
                     query += ' processed == ?'
                     arglist.append(processed)
+                if submitter is not None:
+                    if len(arglist):
+                        query += ' and '
+                    query += ' submitter == ?'
+                    arglist.append(submitter)
                 if not len(arglist):
                     return None
                 try:
@@ -278,14 +296,22 @@ class DataBaseWrapper(object):
                     logging.debug(str(e))
 
             def get_channels(self, blacklist=None, blacklist_not_equal=None, domain=None, strike_count=None,
-                             id_filter=None, return_url=False, return_blacklist=False, return_strikes=False):
+                             added_by=None, id_filter=None, return_url=False, return_blacklist=False,
+                             return_strikes=False, return_added_by=False):
                 """returns the channels matching the supplied query
 
+                :param blacklist_not_equal: if set, return channels with blacklist not set to this value
+                :param added_by: the mod this channel was black/whitelisted by
+                :param return_url: if true, return url
+                :param return_blacklist: if true, return blacklist value
+                :param return_strikes: if true, return strikecount
+                :param return_added_by: if true, return added_by
                 :param blacklist: the black/whitelist to match
                 :param domain: the domain to match
                 :param strike_count: the strike count to be less than or equal to
                 :param id_filter: regex filter
-                :return: (channel_id, domain, channel_url (if return_url), blacklist (if return_blacklist), strike_count (if return_strikes))
+                :return: (channel_id, domain, channel_url (if return_url), blacklist (if return_blacklist), strike_count (if return_strikes),
+                          added_by (if return_added_by))
                          or None if empty query
                 """
 
@@ -297,6 +323,8 @@ class DataBaseWrapper(object):
                     query += ", blacklist"
                 if return_strikes:
                     query += ", strike_count"
+                if return_added_by:
+                    query += ", added_by"
                 query += " from channel_record where"
 
                 #set up filtering criteria
@@ -326,6 +354,11 @@ class DataBaseWrapper(object):
                         query += " and"
                     query += " channel_id regexp ?"
                     arglist.append(id_filter)
+                if added_by is not None:
+                    if len(arglist):
+                        query += " and"
+                    query += " added_by = ?"
+                    arglist.append(added_by)
                 #empty filter
                 if not len(arglist):
                     return None
@@ -339,16 +372,17 @@ class DataBaseWrapper(object):
                     logging.debug(
                         "domain, blacklist, id_filter:" + str(domain) + ", " + str(blacklist) + ", " + str(id_filter))
 
-            def set_blacklist(self, channel_entries, value):
+            def set_blacklist(self, channel_entries, value, added_by):
                 """Updates the black/whitelist for the given channel entries
 
+                :param added_by: the user causing this blacklist set (sets field added_by)
                 :param channel_entries: a list of tuples of the form (channel_id, domain)
                 :param value: the new blacklist enum value
                 """
                 try:
-                    self.cursor.executemany('update channel_record set blacklist = ? where channel_id = ?'
+                    self.cursor.executemany('update channel_record set blacklist = ?, added_by = ? where channel_id = ?'
                                             ' and domain_eq(domain, ?)',
-                                            [(value, channel[0], channel[1]) for channel in channel_entries])
+                                            [(value, added_by, channel[0], channel[1]) for channel in channel_entries])
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on set_blacklist.")

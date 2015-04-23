@@ -122,7 +122,7 @@ class SubScanner(RedditThread.RedditThread):
     def __process_post_list(self, post_list):
         """processes a list of posts
 
-        :param post_list: a list of post data of the form: (post.created_utc, post.name, post.url, post)
+        :param post_list: a list of post data of the form: (post.created_utc, post.name, post.url, post.author.name, post)
         :returns: A boolean for each post, each entry is True if processed, false if the post domain was not matched
         """
 
@@ -149,7 +149,7 @@ class SubScanner(RedditThread.RedditThread):
                     viewcount = blacklist.data.get_views(url)
                     index = indexes[i]
                     if viewcount > blacklist.data.viewcount_limit:
-                        self.policy.on_viewcount(post_list[index][3], blacklist.name, viewcount, blacklist.data.viewcount_limit)
+                        self.policy.on_viewcount(post_list[index][4], blacklist.name, viewcount, blacklist.data.viewcount_limit)
 
             #get channel ids
             channel_data = [blacklist.data.channel_id(url) for url in my_urls]
@@ -165,14 +165,14 @@ class SubScanner(RedditThread.RedditThread):
                 if enum == BlacklistEnums.Blacklisted:
                     logging.info(u"Blacklist action taken on post {}".format(post_list[index][1]))
                     # self.policy.info_url(u"Blacklist action taken on post", post_list[index][1])
-                    self.policy.on_blacklist(post_list[index][3])
+                    self.policy.on_blacklist(post_list[index][4])
                 if enum == BlacklistEnums.Whitelisted:
                     logging.info(u"Whitelist action taken on post {}".format(post_list[index][1]))
                     # self.policy.info_url(u"Whitelist action taken on post", post_list[index][1])
-                    self.policy.on_whitelist(post_list[index][3])
+                    self.policy.on_whitelist(post_list[index][4])
                 # add post to record
                 added_posts.append((post_list[index][1], channel_ids[i], blacklist.domains[0],
-                                    datetime.datetime.fromtimestamp(post_list[index][0])))
+                                    datetime.datetime.fromtimestamp(post_list[index][0]), post_list[index][3]))
 
         # finally add our new posts to the reddit_record
         with DataBase.DataBaseWrapper(self.file, False) as db:
@@ -189,6 +189,7 @@ class SubScanner(RedditThread.RedditThread):
         posts = []
         if self.policy.Use_Reddit_Analytics_For_Historical_Scan:
             while last_seen > goto:
+                raise NotImplementedError
                 if last_id:
                     self.RA_params["after"] = last_id
                 try:
@@ -236,7 +237,7 @@ class SubScanner(RedditThread.RedditThread):
     def historical_scan(self, goto):
         posts = self.get_historial_posts(goto)
         if posts is not None and len(posts):
-            post_data = [(post.created_utc, post.name, post.url, post) for post in posts if not post.is_self]
+            post_data = [(post.created_utc, post.name, post.url, Actions.get_username(post), post) for post in posts if not post.is_self]
             self.__process_post_list(post_data)
             return scan_result.FoundOld
         return scan_result.Error
@@ -260,7 +261,7 @@ class SubScanner(RedditThread.RedditThread):
 
         try:
             #Actions.resolve_url(post.url)
-            post_data = [(post.created_utc, post.name, post.url, post) for post in posts if
+            post_data = [(post.created_utc, post.name, post.url, Actions.get_username(post), post) for post in posts if
                          not post.is_self]
         except socket.error, e:
             if e.errno == 10061:

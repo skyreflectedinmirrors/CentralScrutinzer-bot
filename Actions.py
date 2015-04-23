@@ -224,7 +224,7 @@ def get_username(post):
     try:
         return post.author.name
     except:
-        return 'PRIVATE'
+        return 'deleted'
 
 def get_by_ids(reddit, id_list):
     """ Gets a list of posts by submission id
