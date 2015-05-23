@@ -335,6 +335,7 @@ class SubScanner(RedditThread.RedditThread):
                 result = self.scan(self.policy.Posts_To_Load)
             except Exception, e:
                 logging.debug("Error on sub scan:\t" + str(e))
+                logging.exception(e)
                 result = scan_result.Error
 
             try:

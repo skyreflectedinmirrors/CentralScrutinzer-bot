@@ -144,17 +144,17 @@ class YoutubeExtractor(IdentificationExtractor):
         try:
             response = self.youtube.channels().list(part='snippet', id=channel_id).execute()
         except apiclient.errors.HttpError:
-            logging.error(u"Bad request for youtube channel id " + str(channel_id))
+            logging.error(u"Bad request for youtube channel id {} and url {} ".format(str(channel_id), str(url)))
             return None
 
         try:
             #should be the first id in the list
             channel_title = response.get("items")[0].get("snippet").get("title")
         except IndexError:
-            logging.info(u"Deleted or private youtube channel requested: {}".format(id))
+            logging.info(u"Deleted or private youtube channel requested: {}, for url {}".format(id, str(url)))
             return None
         except Exception, e:
-            logging.error()
+            logging.exception(e)
         return channel_title, u"http://www.youtube.com/channel/{}".format(channel_id)
 
 
@@ -192,14 +192,17 @@ class YoutubeExtractor(IdentificationExtractor):
             response = self.youtube.videos().list(part='statistics', id=id).execute()
         except apiclient.errors.HttpError:
             logging.info(u"Could not determine views for video: {}".format(id))
+            return None
 
         viewcount = None
         try:
             viewcount = response.get("items")[0].get("statistics").get("viewCount")
         except IndexError:
-            logging.error(u"No items found for youtube id {}".format(id))
+            logging.error(u"No items found for youtube id {} for url {}".format(id, str(url)))
+            return None
         except Exception, e:
             logging.error(u"Unknown error detecting viewCount for youtube url " + str(url))
+            return None
 
         return int(viewcount)
 
