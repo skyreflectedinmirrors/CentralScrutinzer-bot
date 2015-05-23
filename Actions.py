@@ -226,6 +226,12 @@ def get_username(post):
     except:
         return 'deleted'
 
+def is_deleted(post):
+    try:
+        return post.author is None or (post.author is not None and post.author.name == "[deleted]")
+    except:
+        return False
+
 def get_by_ids(reddit, id_list):
     """ Gets a list of posts by submission id
 
