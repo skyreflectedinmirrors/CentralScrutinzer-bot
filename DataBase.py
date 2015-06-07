@@ -423,11 +423,11 @@ class DataBaseWrapper(object):
                 """
                 try:
                     if isinstance(reason, list) and len(reason) == len(channel_entries):
-                        self.cursor.executemany('update channel_record set blacklist = ?, added_by = ?, reason = ?'
+                        self.cursor.executemany('update channel_record set blacklist = ?, listed_by = ?, reason = ?'
                                                 ' where channel_id = ? and domain_eq(domain, ?)',
                                                 [(value, added_by, reason[i], channel[i][0], channel[i][1]) for i, channel in enumerate(channel_entries)])
                     else:
-                        self.cursor.executemany('update channel_record set blacklist = ?, added_by = ?, reason = ?'
+                        self.cursor.executemany('update channel_record set blacklist = ?, listed_by = ?, reason = ?'
                                                 ' where channel_id = ? and domain_eq(domain, ?)',
                                                 [(value, added_by, reason, channel[0], channel[1]) for channel in channel_entries])
                     self.db.commit()
