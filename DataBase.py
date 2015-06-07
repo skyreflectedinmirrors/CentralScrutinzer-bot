@@ -414,7 +414,7 @@ class DataBaseWrapper(object):
                     logging.debug(
                         "domain, blacklist, id_filter:" + str(domain) + ", " + str(blacklist) + ", " + str(id_filter))
 
-            def set_blacklist(self, channel_entries, value, added_by):
+            def set_blacklist(self, channel_entries, value, added_by, reason=None):
                 """Updates the black/whitelist for the given channel entries
 
                 :param added_by: the user causing this blacklist set (sets field added_by)
@@ -422,9 +422,14 @@ class DataBaseWrapper(object):
                 :param value: the new blacklist enum value
                 """
                 try:
-                    self.cursor.executemany('update channel_record set blacklist = ?, added_by = ? where channel_id = ?'
-                                            ' and domain_eq(domain, ?)',
-                                            [(value, added_by, channel[0], channel[1]) for channel in channel_entries])
+                    if isinstance(reason, list) and len(reason) == len(channel_entries):
+                        self.cursor.executemany('update channel_record set blacklist = ?, added_by = ?, reason = ?'
+                                                ' where channel_id = ? and domain_eq(domain, ?)',
+                                                [(value, added_by, reason[i], channel[i][0], channel[i][1]) for i, channel in enumerate(channel_entries)])
+                    else:
+                        self.cursor.executemany('update channel_record set blacklist = ?, added_by = ?, reason = ?'
+                                                ' where channel_id = ? and domain_eq(domain, ?)',
+                                                [(value, added_by, reason, channel[0], channel[1]) for channel in channel_entries])
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on set_blacklist.")
