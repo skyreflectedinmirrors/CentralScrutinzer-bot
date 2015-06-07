@@ -7,6 +7,7 @@ import Actions
 import logging
 import Blacklist
 import traceback
+import re
 
 class StrikeCounter(RedditThread.RedditThread):
     """
@@ -20,7 +21,26 @@ class StrikeCounter(RedditThread.RedditThread):
         self.policy = owner.policy
         self.database_file = self.owner.database_file
         self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
+        self.sub = utilitymethods.get_subreddit(self.owner.credentials, self.praw)
         self.blacklists = self.owner.blacklists
+
+    def check_exception(self, post):
+        #check top level comments for specific keyword matches
+        try:
+            success = True
+            #check comments
+            for comment in post.comments:
+                if not Actions.is_deleted(comment):
+                    exception = next((exception for exception in self.policy.exception_list
+                                      if exception[0] == comment.author.name), None)
+                    if exception is not None:
+                        #test keyword
+                        if re.search(exception[1], comment.body):
+                            return True
+            return False
+        except Exception, e:
+            success = False
+            time.sleep(1)
 
     def __get_unique(self, seq, seq2):
         tally = []
@@ -41,6 +61,7 @@ class StrikeCounter(RedditThread.RedditThread):
                 logging.warning("No reddit entries found in database...")
                 return
 
+            new_strike_channels = []
             #loop over entries
             stride = 100
             while len(entries):
@@ -75,16 +96,22 @@ class StrikeCounter(RedditThread.RedditThread):
                         continue #if there was an error adding the channels, don't mark as processed
 
 
-                #check for deleted / (not by automod)
+                #check for deleted / exceptions
                 increment_posts = {}
                 processed_posts = []
+                excepted_posts = []
                 for i, post in enumerate(posts):
-                    if (post.author is None or (post.author is not None and post.author.name == "[deleted]")) and post.link_flair_text is not None:
-                        #self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
-                        if not (channels[i], domains[i]) in increment_posts:
-                            increment_posts[(channels[i], domains[i])] = 1
+                    if Actions.is_deleted(post):
+                        if not self.check_exception(post):
+                            #self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
+                            if not (channels[i], domains[i]) in increment_posts:
+                                increment_posts[(channels[i], domains[i])] = 1
+                            else:
+                                increment_posts[(channels[i], domains[i])] += 1
+                            if not (channels[i], domains[i]) in new_strike_channels:
+                                new_strike_channels.append((channels[i], domains[i]))
                         else:
-                            increment_posts[(channels[i], domains[i])] += 1
+                            excepted_posts.append(post.name)
                         processed_posts.append(post.name)
 
                 if len(increment_posts):
@@ -92,20 +119,30 @@ class StrikeCounter(RedditThread.RedditThread):
                     db.add_strike([(increment_posts[key],) + key for key in increment_posts])
                     #remove from consideration (so we don't count them over and over)
                     db.set_processed(processed_posts)
+                    db.set_exception(excepted_posts)
                     if __debug__:
                         logging.info("Strike Counter found {} new deleted posts...".format(len(processed_posts)))
-
 
                 #forget old entries
                 entries = entries[num_loaded:]
 
             #check for rule breaking channels
             channels = db.get_channels(strike_count=self.policy.Strike_Count_Max, blacklist=Blacklist.BlacklistEnums.NotFound)
+            #check for user strike counts
+            user_strikes = db.max_processed_from_user(new_strike_channels)
+            if user_strikes:
+                user_strikes = [user[1] for user in user_strikes if user[0] > self.policy.User_Strike_Count_Max]
 
             if channels and len(channels):
                 if __debug__:
                     logging.info("{} new channels added to the blacklist".format(len(channels)))
-                db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'])
+                db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'],
+                                 "Global strike count exceeded")
+
+            if user_strikes and len(user_strikes):
+                reason_list = ["User strike count exceeded by {}".format(user) for user in user_strikes]
+                db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'],
+                                 reason_list)
 
             #find posts older than scan period marked as processed
             old_date = datetime.datetime.now() - self.policy.Strike_Counter_Scan_History

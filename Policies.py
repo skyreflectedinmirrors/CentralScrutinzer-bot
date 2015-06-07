@@ -57,7 +57,8 @@ class DefaultPolicy(object):
     def on_viewcount(self, post, website, viewcount, limit):
         self.remove_and_post(post, self.format_viewcount(Actions.get_username(post), post.short_link, website, viewcount, limit))
 
-    Strike_Count_Max = 3 #three strikes, and you're out
+    Strike_Count_Max = 10 #global strike limit across all users
+    User_Strike_Count_Max = 3 #user strike limit
     Use_Reddit_Analytics_For_Historical_Scan = False #much more detailed history (normally), currently RA seems offline
     Historial_Scan_Period = 24 * 60 * 60 # 1 day
 
