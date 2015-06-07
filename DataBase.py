@@ -43,7 +43,9 @@ class DataBaseWrapper(object):
                     domain text,
                     blacklist integer default 0,
                     strike_count integer default 0,
-                    added_by text,
+                    listed_by text,
+                    list_time timestamp default current_timestamp,
+                    reason text,
                     primary key(channel_id, domain))''')
                     try:
                         self.cursor.execute('create index blist on channel_record(blacklist)')
@@ -65,8 +67,9 @@ class DataBaseWrapper(object):
                     channel_id text,
                     domain text,
                     processed integer default 0,
+                    date_added timestamp default current_timestamp
                     submitter text,
-                    date_added timestamp default current_timestamp)''')
+                    exception integer default 0)''')
                     try:
                         self.cursor.execute('create index channel on reddit_record(channel_id, domain)')
                     except sqlite3.OperationalError, e:
@@ -91,6 +94,15 @@ class DataBaseWrapper(object):
                             pass
                         else:
                             logging.critical("Could not create index submit on table reddit_record")
+                            logging.debug(str(e))
+
+                    try:
+                        self.cursor.execute('create index baddelete on reddit_record(processed, exception)')
+                    except sqlite3.OperationalError, e:
+                        if str(e) == "index submit already exists":
+                            pass
+                        else:
+                            logging.critical("Could not create index baddelete on table reddit_record")
                             logging.debug(str(e))
 
                     self.db.commit()
@@ -159,7 +171,8 @@ class DataBaseWrapper(object):
                     logging.debug(str(e))
 
             def get_reddit(self, channel_id=None, domain=None, date_added=None, processed=None, submitter=None,
-                           return_channel_id=True, return_domain=True, return_dateadded=False, return_submitter=False):
+                           exception=None, return_channel_id=True, return_domain=True, return_dateadded=False,
+                           return_submitter=False, return_exception=False):
                 """returns a list of reddit entries matching the provided search modifiers (i.e. channel_id, domain, date_added)
 
                 :returns: a list of tuples of the form (short_url, channel_id*, domain*, date_added*, submitter* (*if specified))
@@ -174,6 +187,8 @@ class DataBaseWrapper(object):
                     query += ', date_added'
                 if return_submitter:
                     query += ', submitter'
+                if return_exception:
+                    query += ', exception'
                 query += ' from reddit_record where '
                 if channel_id is not None:
                     query += 'channel_id = ?'
@@ -198,6 +213,11 @@ class DataBaseWrapper(object):
                         query += ' and '
                     query += ' submitter == ?'
                     arglist.append(submitter)
+                if exception is not None:
+                    if len(arglist):
+                        query += ' and '
+                    query += ' exception == ?'
+                    arglist.append(exception)
                 if not len(arglist):
                     return None
                 try:
@@ -247,6 +267,28 @@ class DataBaseWrapper(object):
                 except sqlite3.Error, e:
                     logging.error("Could not remove short_url from database")
                     logging.debug(str(e))
+
+            def max_processed_from_user(self, channel_entries):
+                """Returns the maximum number of processed, non-exception posts for a single user for the given channels
+
+                :param channel_entries: a list of tuples of (channel_id, domain)
+                :return: a list of (strike count, submitter), the max # of deleted posts by the worst offending user
+                """
+
+                try:
+                    if not isinstance(channel_entries, list):
+                        channel_entries = list(channel_entries)
+                    self.cursor.executemany('select count(short_url), submitter from reddit_record where channel_id == ?'
+                                            ' and domain == ? and submitter is not null'
+                                            ' and processed == 1 and exception == 0'
+                                            ' group by submitter'
+                                            ' order by count(short_url) desc'
+                                            ' limit 1',
+                                            channel_entries)
+                except sqlite3.Error, e:
+                    logging.error('Could not get max_processed_from_user')
+                    logging.debug(str(e))
+
 
             def add_channels(self, channel_entries):
                 """Adds channels to the channel_record, entries need not be unique
@@ -468,6 +510,19 @@ class DataBaseWrapper(object):
                 try:
                     tupled = [(val,) for val in post_list]
                     self.cursor.executemany('update reddit_record set processed = 1 where short_url = ?', tupled)
+                    self.db.commit()
+                except sqlite3.Error, e:
+                    logging.error("Error on set_processed.")
+                    logging.debug(str(e))
+
+            def set_exception(self, post_list):
+                """Sets the given channel entries exception to 1
+
+                :param channel_entries: a list of short_urls
+                """
+                try:
+                    tupled = [(val,) for val in post_list]
+                    self.cursor.executemany('update reddit_record set exception = 1 where short_url = ?', tupled)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on set_processed.")
