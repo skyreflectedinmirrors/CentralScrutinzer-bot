@@ -30,12 +30,11 @@ class StrikeCounter(RedditThread.RedditThread):
             success = True
             #check comments
             for comment in post.comments:
-                if not Actions.is_deleted(comment):
-                    exception = next((exception for exception in self.policy.exception_list
-                                      if exception[0] == comment.author.name), None)
-                    if exception is not None:
-                        #test keyword
-                        if re.search(exception[1], comment.body):
+                #test comment
+                if not Actions.is_deleted(comment) and comment.distinguished == 'moderator':
+                    #test keyword
+                    for exception in self.policy.exception_list:
+                        if re.search(exception, comment.body):
                             return True
             return False
         except Exception, e:
