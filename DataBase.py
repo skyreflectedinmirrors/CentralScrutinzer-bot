@@ -67,7 +67,7 @@ class DataBaseWrapper(object):
                     channel_id text,
                     domain text,
                     processed integer default 0,
-                    date_added timestamp default current_timestamp
+                    date_added timestamp default current_timestamp,
                     submitter text,
                     exception integer default 0)''')
                     try:
@@ -99,7 +99,7 @@ class DataBaseWrapper(object):
                     try:
                         self.cursor.execute('create index baddelete on reddit_record(processed, exception)')
                     except sqlite3.OperationalError, e:
-                        if str(e) == "index submit already exists":
+                        if str(e) == "index baddelete already exists":
                             pass
                         else:
                             logging.critical("Could not create index baddelete on table reddit_record")

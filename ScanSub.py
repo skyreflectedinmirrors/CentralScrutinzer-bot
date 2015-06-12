@@ -77,7 +77,7 @@ class SubScanner(RedditThread.RedditThread):
                     goto = goto[0]
                     goto -= datetime.timedelta(days=1)
         if self.policy.Historical_Scan_On_New_Database:
-            with DataBase.DataBaseWrapper(self.file, False) as db:
+            with DataBase.DataBaseWrapper(self.file) as db:
                 if db.check_reddit_empty() and db.check_channel_empty():
                     scan = True
                     goto = datetime.datetime.now() - self.policy.Strike_Counter_Scan_History
