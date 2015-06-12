@@ -25,6 +25,18 @@ class StrikeCounter(RedditThread.RedditThread):
         self.blacklists = self.owner.blacklists
 
     def check_exception(self, post):
+        try:
+            #check for link flair
+            if post.link_flair_css_class is None:
+                return True
+        except:
+            pass
+        try:
+            #check for removal reason
+            if post.removal_reason is not None:
+                return True
+        except:
+            pass
         #check top level comments for specific keyword matches
         try:
             success = True
