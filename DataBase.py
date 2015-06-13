@@ -278,13 +278,19 @@ class DataBaseWrapper(object):
                 try:
                     if not isinstance(channel_entries, list):
                         channel_entries = list(channel_entries)
-                    self.cursor.executemany('select count(short_url), submitter from reddit_record where channel_id == ?'
-                                            ' and domain == ? and submitter is not null'
-                                            ' and processed == 1 and exception == 0'
-                                            ' group by submitter'
-                                            ' order by count(short_url) desc'
-                                            ' limit 1',
-                                            channel_entries)
+                    return_entries = []
+                    for entry in channel_entries:
+                        val = self.cursor.execute('select count(short_url), '
+                                                'submitter from reddit_record where channel_id == ?'
+                                                ' and domain == ? and submitter is not null'
+                                                ' and processed == 1 and exception == 0'
+                                                ' group by submitter'
+                                                ' order by count(short_url) desc'
+                                                ' limit 1',
+                                                entry).fetchone()
+                        if val is not None:
+                            return_entries.append(val)
+                    return return_entries
                 except sqlite3.Error, e:
                     logging.error('Could not get max_processed_from_user')
                     logging.debug(str(e))
