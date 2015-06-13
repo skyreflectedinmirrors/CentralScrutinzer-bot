@@ -224,7 +224,7 @@ def get_username(post):
     try:
         return post.author.name
     except:
-        return '[deleted]'
+        return None
 
 def is_deleted(post):
     try:
