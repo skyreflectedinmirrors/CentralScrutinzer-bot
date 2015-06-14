@@ -386,7 +386,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         else:
             real_entries = []
             for entry in entries:
-                if self.url_regex.match(entry) and Actions.resolve_url(entry):
+                if self.url_regex.match(entry):# and Actions.resolve_url(entry):
                     real_entries.append(entry)
                 else:
                     invalid_urls.append(entry)
