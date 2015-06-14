@@ -24,6 +24,20 @@ class StrikeCounter(RedditThread.RedditThread):
         self.sub = utilitymethods.get_subreddit(self.owner.credentials, self.praw)
         self.blacklists = self.owner.blacklists
 
+        self.regex_list = [ re.compile(r'^(?:\*\*)?/u/([\w\d_\-\*]+)[,\s]'), #Automod / removal reason
+            re.compile(r'^All apologies /u/([\w\d_\-\*]+)[,\s]'), #raddit
+            re.compile(r'/u/([\w\d\*-_]+), your submission') #generic
+        ]
+
+    def check_for_submitter(self, post):
+        #check comments for submitter id
+        for comment in post.comments:
+            if comment.author and comment.distinguished == 'moderator': #not deleted, and from mod
+                for regex in self.regex_list:
+                    search = regex.search(comment.body)
+                    if search:
+                        return search.group(1)
+
     def check_exception(self, post):
         try:
             #check for link flair
@@ -79,6 +93,10 @@ class StrikeCounter(RedditThread.RedditThread):
                 num_loaded = min(stride, len(entries))
                 (ids, channels, domains) = zip(*entries[:num_loaded])
                 ids = list(ids)
+                #see if we have submitters
+                have_submitters = db.have_submitter(ids)
+                #any new detected usernames go here
+                new_submitters_list = []
                 channels = list(channels)
                 domains = list(domains)
                 loaded = Actions.get_by_ids(self.praw, ids)
@@ -113,6 +131,10 @@ class StrikeCounter(RedditThread.RedditThread):
                 excepted_posts = []
                 for i, post in enumerate(posts):
                     if Actions.is_deleted(post):
+                        if not have_submitters[i]:
+                            val = self.check_for_submitter(post)
+                            if val is not None:
+                                new_submitters_list.append((val, ids[i]))
                         if not self.check_exception(post):
                             #self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
                             if not (channels[i], domains[i]) in increment_posts:
@@ -133,6 +155,10 @@ class StrikeCounter(RedditThread.RedditThread):
                     db.set_exception(excepted_posts)
                     if __debug__:
                         logging.info("Strike Counter found {} new deleted posts...".format(len(processed_posts)))
+
+                #update submitters
+                if len(new_submitters_list):
+                    db.update_submitter(new_submitters_list)
 
                 #forget old entries
                 entries = entries[num_loaded:]

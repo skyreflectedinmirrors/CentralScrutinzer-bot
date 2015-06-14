@@ -253,6 +253,32 @@ class DataBaseWrapper(object):
                     logging.error("Could not remove reddit records older than " + str(the_time))
                     logging.debug(str(e))
 
+            def have_submitter(self, post_list):
+                try:
+                    if not isinstance(post_list, list):
+                        post_list = list(post_list)
+                    post_list = [(entry,) for entry in post_list]
+                    return_list = []
+                    for entry in post_list:
+                        return_list.append(self.cursor.execute(
+                                'select '
+                                    'case when submitter is null then 0 else 1 end '
+                                'from reddit_record where short_url = ?', entry)
+                                           .fetchone()[0])
+                    return return_list
+                except sqlite3.Error, e:
+                    logging.error("Could not check have_submitter")
+                    logging.exception(e)
+
+            def update_submitter(self, post_list):
+                try:
+                    if not isinstance(post_list, list):
+                        post_list = list(post_list)
+                    self.cursor.executemany('update reddit_record set submitter = ? where short_url = ?', post_list)
+                except sqlite3.Error, e:
+                    logging.error("Could not update_submitter's")
+                    logging.exception(e)
+
             def remove_reddit(self, reddit_entries):
                 """removes the entries from the reddit_record
 
