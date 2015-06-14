@@ -150,11 +150,14 @@ class StrikeCounter(RedditThread.RedditThread):
                 if len(increment_posts):
                     #add strikes
                     db.add_strike([(increment_posts[key],) + key for key in increment_posts])
+                    if __debug__:
+                        logging.info("Strike Counter found {} new deleted posts...".format(len(increment_posts)))
+
+                if len(increment_posts) or len(excepted_posts):
                     #remove from consideration (so we don't count them over and over)
                     db.set_processed(processed_posts)
                     db.set_exception(excepted_posts)
-                    if __debug__:
-                        logging.info("Strike Counter found {} new deleted posts...".format(len(processed_posts)))
+
 
                 #update submitters
                 if len(new_submitters_list):
