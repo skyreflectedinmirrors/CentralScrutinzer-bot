@@ -96,6 +96,14 @@ def make_comment(post, text, dist=False):
         if dist:
             comment.distinguish()
         return comment
+    except praw.errors.APIException, a:
+        if a.error_type == 'DELETED_LINK':
+            logging.info('Comment not made on post {}, post already deleted'.format(post.name))
+            pass
+        else:
+            logging.error("Comment " + text + " was not made successfully!")
+            if __debug__:
+                logging.exception(a)
     except Exception, e:
         logging.error("Comment " + text + " was not made successfully!")
         if __debug__:
