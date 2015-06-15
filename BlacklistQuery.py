@@ -386,7 +386,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         else:
             real_entries = []
             for entry in entries:
-                if self.url_regex.match(entry) and Actions.resolve_url(entry):
+                if self.url_regex.match(entry):# and Actions.resolve_url(entry):
                     real_entries.append(entry)
                 else:
                     invalid_urls.append(entry)
@@ -405,14 +405,14 @@ class BlacklistQuery(RedditThread.RedditThread):
                     continue
                 if blacklist:
                     if add:
-                        bad_urls, bad_ids, good_ids = blist.add_blacklist_urls(this_list)
+                        bad_urls, bad_ids, good_ids = blist.add_blacklist_urls(this_list, author)
                     else:
-                        bad_urls, bad_ids, good_ids = blist.remove_blacklist_urls(this_list)
+                        bad_urls, bad_ids, good_ids = blist.remove_blacklist_urls(this_list, author)
                 else:
                     if add:
-                        bad_urls, bad_ids, good_ids = blist.add_whitelist_urls(this_list)
+                        bad_urls, bad_ids, good_ids = blist.add_whitelist_urls(this_list, author)
                     else:
-                        bad_urls, bad_ids, good_ids = blist.remove_whitelist_urls(this_list)
+                        bad_urls, bad_ids, good_ids = blist.remove_whitelist_urls(this_list, author)
                 invalid_urls += bad_urls
                 invalid_ids += [(b, blist.domains[0]) for b in bad_ids]
                 valid_ids += [(g, blist.domains[0]) for g in good_ids]
