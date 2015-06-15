@@ -194,16 +194,13 @@ class YoutubeExtractor(IdentificationExtractor):
             response = self.youtube.videos().list(part='statistics', id=id).execute()
         except apiclient.errors.HttpError:
             logging.info(u"Could not determine views for video: {}".format(id))
-
-        viewcount = None
         try:
             viewcount = response.get("items")[0].get("statistics").get("viewCount")
+            return int(viewcount)
         except IndexError:
             logging.error(u"No items found for youtube id {}".format(id))
         except Exception, e:
             logging.error(u"Unknown error detecting viewCount for youtube url " + str(url))
-
-        return int(viewcount)
 
 
 from utilitymethods import domain_extractor
