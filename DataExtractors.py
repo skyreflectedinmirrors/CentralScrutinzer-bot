@@ -178,6 +178,8 @@ class YoutubeExtractor(IdentificationExtractor):
         if yt_id:
             yt_id = yt_id[0].split('#')[0]
             yt_id = yt_id.split('?')[0]
+            if yt_id.endswith('/'):
+                yt_id = yt_id[:-1]
             return yt_id
         return None
 
