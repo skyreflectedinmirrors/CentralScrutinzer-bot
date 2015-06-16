@@ -46,12 +46,12 @@ class BlacklistQuery(RedditThread.RedditThread):
                                     r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?))'  # domain...
                                     r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
-        self.print_command = re.compile(r"^[pP]rint\b")
+        self.info_command = re.compile(r"^[iI]nfo\b")
         self.add_command = re.compile(r"^(\+)|([aA]dd)\b")
         self.remove_command = re.compile(r"^(\-)|([rR]emove)\b")
         self.update_command = re.compile(r"^[uU]pdate[- ]*[mM]ods\b")
         self.help_command = re.compile(r"^[hH]elp(\b|$)")
-        self.base_commands = [self.print_command, self.add_command, self.remove_command, self.update_command,
+        self.base_commands = [self.info_command, self.add_command, self.remove_command, self.update_command,
                               self.help_command]
 
         self.blist_command = re.compile(r"\b[Bb]lacklist\b")
@@ -60,24 +60,48 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.short_doc_string = \
             u"""Available Commands:
                             print/add/remove/update-mods/help"""
-        self.print_doc_string = \
+        self.info_doc_string = \
             u"""
-                            **Print** command -- returns the black/whitelist for a given domain (optional) id filter.
-                            Usage:
-                            subject: print whitelist/blacklist (pick one)
-                            body: domain (e.g. youtube, or soundcloud.com)
-                            filter (optional)
+                            **Info** command -- returns various info about the given channel / user / blacklist
+                            Usage 1:
+                            subject: info list
+                            body: domain: youtube.com (e.g., is optional)
+                            filter: KEXP (optional, regex supported)
+
+                            Returns a table of:
+                                channel, domain, black/whitelist status, lister, list date, reason for listing
+
+                            Where each channel return matches the optional filter and domain
+
+
+                            Usage 2:
+                            subject: info user
+                            body: /u/username1
+                            /u/username2...
+
+                            Returns a table of:
+                                submission, user, channel, domain, strike
+
+                            The list of submissions for a given user(s) along with corresponding channel / domain,
+                            and whether the submission was deleted without a proper exception\\*
+
+                            Usage 3:
+                            subject: info channel
+                            body: url list (url of a video from the desired channels from any domain, one per line)
+
+                            Returns a table of:
+                                submission, user, channel, domain, strike
+
+                            The list of submissions for a channel / domain with corresponding user, and whether the
+                            submission was deleted without a proper exception\\*
+
+                            \\*  Note: exceptions are updated daily by default
+
                             """
         self.add_doc_string = \
             u"""
                             **Add** command -- adds the channel associated with the url to the black/whitelist
                             Usage:
-                            subject: +whitelist/blacklist (pick one)
-                            body: domain  (e.g. youtube, or soundcloud.com)
-                            id list  (channel ids, one per line or comma separated, each id is expected to be in quotes)
-
-                            **OR**
-
                             subject: +whitelist/blacklist (pick one)
                             body: url list  (url of a video from this channel, one per line)
                             """
@@ -85,12 +109,6 @@ class BlacklistQuery(RedditThread.RedditThread):
             u"""
                             **Remove** command -- removes the channel associated with the domain and id (or optionally url) from the black/whitelist
                             Usage:
-                            subject: -whitelist/blacklist
-                            body: domain  (e.g. youtube, or soundcloud.com)
-                            id list  (channel ids, one per line or comma separated, each id is expected to be in quotes)
-
-                            **OR**
-
                             subject: -whitelist/blacklist (pick one)
                             body: url list  (url of a video from this channel, one per line)
                             """
@@ -131,7 +149,6 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.line_end = re.compile("\\s*$")
         self.escape_chars = re.compile("(\\\\)|(\\\\\")")
         self.message_cache = []
-        self.saved_messages = []
 
 
     def __is_escaped(self, i, line):
@@ -487,7 +504,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                 elif matches[0] == self.update_command:
                     self.update_mods(message.author.name)
                 # print query
-                elif matches[0] == self.print_command:
+                elif matches[0] == self.info_command:
                     result = self.__print(message.author.name, subject, text)
                 # help query
                 elif matches[0] == self.help_command:
