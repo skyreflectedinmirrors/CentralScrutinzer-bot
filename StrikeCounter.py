@@ -84,7 +84,7 @@ class StrikeCounter(RedditThread.RedditThread):
             now = datetime.datetime.now()
             global_strike_date = now - self.policy.Strike_Counter_Global_Strike_History
             history_date = now - self.policy.Strike_Counter_Global_Strike_History
-            entries = db.get_reddit(date_added=history_date, processed=0)
+            entries = db.get_reddit(date_added=history_date, processed=0, return_dateadded=True)
             if entries is None:
                 logging.warning("No reddit entries found in database...")
                 return
@@ -94,7 +94,7 @@ class StrikeCounter(RedditThread.RedditThread):
             stride = 100
             while len(entries):
                 num_loaded = min(stride, len(entries))
-                (ids, channels, domains) = zip(*entries[:num_loaded])
+                (ids, channels, domains, add_dates) = zip(*entries[:num_loaded])
                 ids = list(ids)
                 #see if we have submitters
                 have_submitters = db.have_submitter(ids)
@@ -140,10 +140,11 @@ class StrikeCounter(RedditThread.RedditThread):
                                 new_submitters_list.append((val, ids[i]))
                         if not self.check_exception(post):
                             #self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
-                            if not (channels[i], domains[i]) in increment_posts:
-                                increment_posts[(channels[i], domains[i])] = 1
-                            else:
-                                increment_posts[(channels[i], domains[i])] += 1
+                            if add_dates[i] > global_strike_date:
+                                if not (channels[i], domains[i]) in increment_posts:
+                                    increment_posts[(channels[i], domains[i])] = 1
+                                else:
+                                    increment_posts[(channels[i], domains[i])] += 1
                             if not (channels[i], domains[i]) in new_strike_channels:
                                 new_strike_channels.append((channels[i], domains[i]))
                         else:
@@ -152,7 +153,7 @@ class StrikeCounter(RedditThread.RedditThread):
 
                 if len(increment_posts):
                     #add strikes
-                    db.add_strike([(increment_posts[key],) + key + (global_strike_date,) for key in increment_posts])
+                    db.add_strike([(increment_posts[key],) + key  for key in increment_posts])
                     if __debug__:
                         logging.info("Strike Counter found {} new deleted posts...".format(len(increment_posts)))
 

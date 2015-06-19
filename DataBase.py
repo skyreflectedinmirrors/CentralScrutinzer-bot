@@ -529,11 +529,11 @@ class DataBaseWrapper(object):
             def add_strike(self, channel_entries):
                 """Adds one to the strike count for the given channels
 
-                :param channel_entries: a list of tuples of the form (add_strikes, channel_id, domain, limit_date)
+                :param channel_entries: a list of tuples of the form (add_strikes, channel_id, domain)
                 """
                 try:
                     self.cursor.executemany('update channel_record set strike_count = strike_count + ? where \
-                                             channel_id = ? and domain_eq(domain, ?) and date_added > ?', channel_entries)
+                                             channel_id = ? and domain_eq(domain, ?)', channel_entries)
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on add_strikes.")
