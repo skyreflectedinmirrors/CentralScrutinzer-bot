@@ -81,7 +81,10 @@ class StrikeCounter(RedditThread.RedditThread):
         """
         #scan old messages, see if deleted
         with DataBase.DataBaseWrapper(self.database_file, False) as db:
-            entries = db.get_reddit(date_added=datetime.datetime.now() - self.policy.Strike_Counter_Scan_History, processed=0)
+            now = datetime.datetime.now()
+            global_strike_date = now - self.policy.Strike_Counter_Global_Strike_History
+            history_date = now - self.policy.Strike_Counter_Global_Strike_History
+            entries = db.get_reddit(history_date, processed=0)
             if entries is None:
                 logging.warning("No reddit entries found in database...")
                 return
@@ -149,7 +152,7 @@ class StrikeCounter(RedditThread.RedditThread):
 
                 if len(increment_posts):
                     #add strikes
-                    db.add_strike([(increment_posts[key],) + key for key in increment_posts])
+                    db.add_strike([(increment_posts[key],) + key + (global_strike_date,) for key in increment_posts])
                     if __debug__:
                         logging.info("Strike Counter found {} new deleted posts...".format(len(increment_posts)))
 
@@ -185,8 +188,7 @@ class StrikeCounter(RedditThread.RedditThread):
                                  reason_list)
 
             #find posts older than scan period marked as processed
-            old_date = datetime.datetime.now() - self.policy.Strike_Counter_Scan_History
-            old_strikes = db.processed_older_than(old_date)
+            old_strikes = db.processed_older_than(global_strike_date)
             if old_strikes is not None and len(old_strikes):
                 decrement_count = {}
                 for pair in old_strikes:
@@ -198,7 +200,7 @@ class StrikeCounter(RedditThread.RedditThread):
                 db.subtract_strikes([(decrement_count[pair],) + pair for pair in decrement_count])
 
             #remove older than scan period
-            db.remove_reddit_older_than(old_date)
+            db.remove_reddit_older_than(history_date)
 
             if __debug__:
                 logging.info("Strike count completed successfully at {}".format(datetime.datetime.now()))

@@ -48,7 +48,8 @@ class DefaultPolicy(object):
     Retry_Multiplier = 2
     Errors_Before_Halt = 3
     Blacklist_Query_Period = 60 #seconds
-    Strike_Counter_Scan_History = datetime.timedelta(days=180) #go back 180 days
+    Strike_Counter_Scan_History = datetime.timedelta(days=365 * 2) #total history of two years
+    Strike_Counter_Global_Strike_History = datetime.timedelta(days=180) #global strike counts only go back 6 months
     Strike_Counter_Frequency = 12 * 60 * 60 #every 12 hrs
     on_blacklist = Actions.remove_post
     on_whitelist = lambda x, y: logging.info("Whitelisting {}".format(y.name)) #Actions.approve_post
