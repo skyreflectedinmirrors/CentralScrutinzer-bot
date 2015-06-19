@@ -83,7 +83,7 @@ class StrikeCounter(RedditThread.RedditThread):
         with DataBase.DataBaseWrapper(self.database_file, False) as db:
             now = datetime.datetime.now()
             global_strike_date = now - self.policy.Strike_Counter_Global_Strike_History
-            history_date = now - self.policy.Strike_Counter_Global_Strike_History
+            history_date = now - self.policy.Strike_Counter_Scan_History
             entries = db.get_reddit(date_added=history_date, processed=0, return_dateadded=True)
             if entries is None:
                 logging.warning("No reddit entries found in database...")
