@@ -218,6 +218,9 @@ class StrikeCounter(RedditThread.RedditThread):
                 if __debug__:
                     logging.exception(e)
                 self.log_error()
+                #only sleep 5 mionutes before retrying
+                time.sleep(self.policy.Scan_Error_Pause)
+                continue
 
             time.sleep(self.policy.Strike_Counter_Frequency)
 
