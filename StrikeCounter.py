@@ -188,8 +188,10 @@ class StrikeCounter(RedditThread.RedditThread):
                 db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'],
                                  reason_list)
 
+            #update global strike counts
+
             #find posts older than scan period marked as processed
-            old_strikes = db.processed_older_than(global_strike_date)
+            old_strikes = db.processed_older_than(global_strike_date, old=0)
             if old_strikes is not None and len(old_strikes):
                 decrement_count = {}
                 for pair in old_strikes:
@@ -198,7 +200,7 @@ class StrikeCounter(RedditThread.RedditThread):
                     decrement_count[pair] += 1
 
                 #and remove them from the count
-                db.subtract_strikes([(decrement_count[pair],) + pair for pair in decrement_count])
+                db.subtract_strikes_and_mark([(decrement_count[pair],) + pair for pair in decrement_count], global_strike_date)
 
             #remove older than scan period
             db.remove_reddit_older_than(history_date)

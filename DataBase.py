@@ -69,7 +69,8 @@ class DataBaseWrapper(object):
                     processed integer default 0,
                     date_added timestamp default current_timestamp,
                     submitter text,
-                    exception integer default 0)''')
+                    exception integer default 0,
+                    old integer default 0)''')
                     try:
                         self.cursor.execute('create index channel on reddit_record(channel_id, domain)')
                     except sqlite3.OperationalError, e:
@@ -227,15 +228,15 @@ class DataBaseWrapper(object):
                     logging.error("Error fetching entries from reddit_record")
                     logging.debug(str(e))
 
-            def processed_older_than(self, the_time):
+            def processed_older_than(self, the_time, old_flag):
                 """returns all entries from the reddit_record processed before a certain date
 
                 :param days: how many days ago
                 """
                 try:
                     self.cursor.execute(
-                        u"select channel_id, domain from reddit_record where date_added < ? and processed = 1",
-                        (the_time,))
+                        u"select channel_id, domain from reddit_record where date_added < ? and processed = 1 and old = ?",
+                        (the_time, old_flag))
                     return self.cursor.fetchall()
                 except sqlite3.Error, e:
                     logging.error("Could not remove processed reddit records older than " + str(the_time))
@@ -512,14 +513,18 @@ class DataBaseWrapper(object):
                     logging.error("Error on set_strikes.")
                     logging.debug(str(e))
 
-            def subtract_strikes(self, channel_entries):
+            def subtract_strikes_and_mark(self, channel_entries, old_time):
                 """Subtracts from the strike count for the given channels
+                Also marks posts older than old_time as 'old'
 
                 :param channel_entries: a list of tuples of the form (add_strikes, channel_id, domain)
                 """
                 try:
                     self.cursor.executemany(u'update channel_record set strike_count = strike_count - ? where \
                                              channel_id = ? and domain_eq(domain, ?)', channel_entries)
+                    self.cursor.execute(
+                        u'update reddit_record set old = 1 where date_added < ?', (old_time,)
+                    )
                     self.db.commit()
                 except sqlite3.Error, e:
                     logging.error("Error on subtract_strikes.")

@@ -472,7 +472,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         """
         result = None
         # valid author check
-        if any(name == message.author.name for name in self.mod_list) and not self.is_cached(message.id):
+        if message.author and any(name == message.author.name for name in self.mod_list) and not self.is_cached(message.id):
             subject = message.subject
             text = message.body
             # check that it matches one of the basic commands
