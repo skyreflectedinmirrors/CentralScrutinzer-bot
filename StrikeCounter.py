@@ -172,10 +172,6 @@ class StrikeCounter(RedditThread.RedditThread):
 
             #check for rule breaking channels
             channels = db.get_channels(strike_count=self.policy.Strike_Count_Max, blacklist=Blacklist.BlacklistEnums.NotFound)
-            #check for user strike counts
-            user_strikes = db.max_processed_from_user(new_strike_channels)
-            if user_strikes:
-                user_strikes = [user[1] for user in user_strikes if user[0] > self.policy.User_Strike_Count_Max]
 
             if channels and len(channels):
                 if __debug__:
@@ -183,15 +179,20 @@ class StrikeCounter(RedditThread.RedditThread):
                 db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'],
                                  "Global strike count exceeded")
 
-            if user_strikes and len(user_strikes):
-                reason_list = ["User strike count exceeded by {}".format(user) for user in user_strikes]
-                db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'],
+            #check for user strike counts
+            user_strikes = db.max_processed_from_user(not_found_value=Blacklist.BlacklistEnums.NotFound,
+                                                      strike_limit=self.policy.User_Strike_Count_Max)
+            if len(user_strikes):
+                reason_list = ["User strike count exceeded by {} ({} strikes counted) for channel {} on domain {}" \
+                               "".format(user[1], user[0], user[2], user[3]) for user in user_strikes]
+                new_blacklist = [(user[2], user[3]) for user in user_strikes]
+                db.set_blacklist(new_blacklist, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'],
                                  reason_list)
 
             #update global strike counts
 
             #find posts older than scan period marked as processed
-            old_strikes = db.processed_older_than(global_strike_date, old=0)
+            old_strikes = db.processed_older_than(global_strike_date, old_flag=0)
             if old_strikes is not None and len(old_strikes):
                 decrement_count = {}
                 for pair in old_strikes:

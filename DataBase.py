@@ -295,29 +295,22 @@ class DataBaseWrapper(object):
                     logging.error("Could not remove short_url from database")
                     logging.debug(str(e))
 
-            def max_processed_from_user(self, channel_entries):
+            def max_processed_from_user(self, not_found_value, strike_limit):
                 """Returns the maximum number of processed, non-exception posts for a single user for the given channels
 
-                :param channel_entries: a list of tuples of (channel_id, domain)
-                :return: a list of (strike count, submitter), the max # of deleted posts by the worst offending user
+                :return: a list of (strike count, submitter, channel_id, domain), the max # of deleted posts by the worst offending user
                 """
 
                 try:
-                    if not isinstance(channel_entries, list):
-                        channel_entries = list(channel_entries)
-                    return_entries = []
-                    for entry in channel_entries:
-                        val = self.cursor.execute(u'select count(short_url), '
-                                                u'submitter from reddit_record where channel_id == ?'
-                                                u' and domain == ? and submitter is not null'
-                                                u' and processed == 1 and exception == 0'
-                                                u' group by submitter'
-                                                u' order by count(short_url) desc'
-                                                u' limit 1',
-                                                entry).fetchone()
-                        if val is not None:
-                            return_entries.append(val)
-                    return return_entries
+                    return self.cursor.execute(u'select count(short_url), submitter, reddit_record.channel_id, '
+                                              u'reddit_record.domain from reddit_record, channel_record where'
+                                              u' submitter is not null and processed == 1 and exception == 0 '
+                                              u'and reddit_record.channel_id == channel_record.channel_id and'
+                                              u' reddit_record.domain == channel_record.domain and'
+                                              u' channel_record.blacklist == not_found_value group by submitter '
+                                              u'having count(short_url) > ? '
+                                              u'order by count(short_url) desc',
+                                              (not_found_value, strike_limit)).fetchall()
                 except sqlite3.Error, e:
                     logging.error('Could not get max_processed_from_user')
                     logging.debug(str(e))
