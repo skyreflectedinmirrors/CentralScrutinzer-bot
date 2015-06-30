@@ -106,13 +106,16 @@ class YoutubeExtractor(IdentificationExtractor):
         self.youtube = build('youtube', 'v3', developerKey=self.key)
 
     #returns the channel id from a url
-    def channel_id(self, url):
+    def channel_id(self, url, retry_id=None):
         """returns the (channel_id, channel_url) from a youtube url
 
         :param url: the url in question
         :return: (channel_id, channel_url) or None if an error occured
         """
-        id = self.__get_video_id(url)
+        if retry_id is not None:
+            id = retry_id
+        else:
+            id = self.__get_video_id(url)
         if not id:
             return None
 
@@ -151,6 +154,10 @@ class YoutubeExtractor(IdentificationExtractor):
             #should be the first id in the list
             channel_title = response.get("items")[0].get("snippet").get("title")
         except IndexError:
+            #retry with 11 character limit
+            if retry_id is None and len(id) > 11:
+                logging.warning('Retrying viewcount for id {} w/ 11 character id {}', id, id[:11])
+                return self.get_views(url, retry_id=id[:11])
             logging.info(u"Deleted or private youtube channel requested: {}, for url {}".format(id, str(url)))
             return None
         except Exception, e:
@@ -183,8 +190,11 @@ class YoutubeExtractor(IdentificationExtractor):
             return yt_id
         return None
 
-    def get_views(self, url):
-        id = self.__get_video_id(url)
+    def get_views(self, url, retry_id=None):
+        if retry_id is not None:
+            id = retry_id
+        else:
+            id = self.__get_video_id(url)
         if not id:
             return None
 
@@ -201,6 +211,10 @@ class YoutubeExtractor(IdentificationExtractor):
             return int(viewcount)
         except IndexError:
             logging.error(u"No items found for youtube id {} for url {}".format(id, str(url)))
+            #retry with 11 character limit
+            if retry_id is None and len(id) > 11:
+                logging.warning('Retrying viewcount for id {} w/ 11 character id {}', id, id[:11])
+                return self.get_views(url, retry_id=id[:11])
             return None
         except Exception, e:
             logging.error(u"Unknown error detecting viewCount for youtube url " + str(url))
