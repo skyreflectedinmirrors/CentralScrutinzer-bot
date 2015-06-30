@@ -518,7 +518,7 @@ class DataBaseWrapper(object):
                     if isinstance(reason, list) and len(reason) == len(channel_entries):
                         self.cursor.executemany(u'update channel_record set blacklist = ?, listed_by = ?, reason = ?'
                                                 u' where channel_id = ? and domain_eq(domain, ?)',
-                                                [(value, added_by, reason[i], channel[i][0], channel[i][1]) for i, channel in enumerate(channel_entries)])
+                                                [(value, added_by, reason[i], channel[0], channel[1]) for i, channel in enumerate(channel_entries)])
                     else:
                         self.cursor.executemany(u'update channel_record set blacklist = ?, listed_by = ?, reason = ?'
                                                 u' where channel_id = ? and domain_eq(domain, ?)',
