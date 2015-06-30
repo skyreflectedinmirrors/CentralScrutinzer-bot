@@ -5,6 +5,7 @@ import logging
 import datetime
 import re
 import Blacklist
+import CentralScrutinizer
 
 
 class DataBaseWrapper(object):
@@ -21,6 +22,10 @@ class DataBaseWrapper(object):
             :type cursor: sqlite3.Cursor
             """
 
+            def __on_lock(self):
+                logging.critical('Database is locked!  Exiting to avoid infinite looping!')
+                CentralScrutinizer.request_exit()
+
             def __init__(self, databasefile, create_on_enter):
                 # open the database and create cursor
                 try:
@@ -30,9 +35,12 @@ class DataBaseWrapper(object):
                         self.__create_table()
                     self.db.create_function("regexp", 2, self.regexp)
                     self.db.create_function("domain_eq", 2, self.domain_eq)
-                except sqlite3.Error, e:
-                    logging.debug(str(e))
-                    logging.critical("Cannot open database file " + databasefile)
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if e.message == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.debug(str(e))
+                        logging.critical("Cannot open database file " + databasefile)
                     raise e
 
             def __create_table(self):
@@ -49,16 +57,19 @@ class DataBaseWrapper(object):
                     primary key(channel_id, domain))''')
                     try:
                         self.cursor.execute('create index blist on channel_record(blacklist)')
-                    except sqlite3.OperationalError, e:
+                    except sqlite3.OperationalError as e:
                         if str(e) == "index blist already exists":
                             pass
                         else:
                             logging.critical("Could not create index blist on table channel_record")
                             logging.debug(str(e))
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.critical("Could not create table channel_record")
-                    logging.debug(str(e))
+                except sqlite3.OperationalError as e:
+                    if e.message == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.critical("Could not create table channel_record")
+                        logging.debug(str(e))
                     return False
 
                 try:
@@ -73,9 +84,11 @@ class DataBaseWrapper(object):
                     old integer default 0)''')
                     try:
                         self.cursor.execute('create index channel on reddit_record(channel_id, domain)')
-                    except sqlite3.OperationalError, e:
+                    except sqlite3.OperationalError as e:
                         if str(e) == "index channel already exists":
                             pass
+                        elif e.message == 'database is locked':
+                            self.__on_lock()
                         else:
                             logging.critical("Could not create index channel on table reddit_record")
                             logging.debug(str(e))
@@ -84,6 +97,8 @@ class DataBaseWrapper(object):
                     except sqlite3.OperationalError, e:
                         if str(e) == "index mydate already exists":
                             pass
+                        elif e.message == 'database is locked':
+                            self.__on_lock()
                         else:
                             logging.critical("Could not create index mydate on table reddit_record")
                             logging.debug(str(e))
@@ -93,6 +108,8 @@ class DataBaseWrapper(object):
                     except sqlite3.OperationalError, e:
                         if str(e) == "index submit already exists":
                             pass
+                        elif e.message == 'database is locked':
+                            self.__on_lock()
                         else:
                             logging.critical("Could not create index submit on table reddit_record")
                             logging.debug(str(e))
@@ -102,14 +119,19 @@ class DataBaseWrapper(object):
                     except sqlite3.OperationalError, e:
                         if str(e) == "index baddelete already exists":
                             pass
+                        elif e.message == 'database is locked':
+                            self.__on_lock()
                         else:
                             logging.critical("Could not create index baddelete on table reddit_record")
                             logging.debug(str(e))
 
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.debug(str(e))
-                    logging.critical("Could not create table reddit_record")
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.debug(str(e))
+                        logging.critical("Could not create table reddit_record")
                     return False
                 return True
 
@@ -122,9 +144,12 @@ class DataBaseWrapper(object):
                 try:
                     return [x[0] for x in self.cursor.execute(u"select date_added from reddit_record order by date_added desc limit ?",
                                                 (limit,)).fetchall()]
-                except Exception, e:
-                    logging.error("Could not select newest reddit entries")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not select newest reddit entries")
+                        logging.debug(str(e))
 
             def check_channel_empty(self):
                 """Checks wheter the reddit_record is empty or not"""
@@ -132,9 +157,12 @@ class DataBaseWrapper(object):
                     self.cursor.execute(u"select count(*) from channel_record")
                     list = self.cursor.fetchone()
                     return list is None or list[0] == 0
-                except Exception, e:
-                    logging.error("Could not check if channel_record was empty")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not check if channel_record was empty")
+                        logging.debug(str(e))
 
             def check_reddit_empty(self):
                 """Checks wheter the reddit_record is empty or not"""
@@ -142,9 +170,12 @@ class DataBaseWrapper(object):
                     self.cursor.execute(u"select count(*) from reddit_record")
                     list = self.cursor.fetchone()
                     return list is None or list[0] == 0
-                except Exception, e:
-                    logging.error("Could not check if reddit_record was empty")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not check if reddit_record was empty")
+                        logging.debug(str(e))
 
             def regexp(self, expr, item):
                 reg = re.compile(expr)
@@ -167,9 +198,12 @@ class DataBaseWrapper(object):
                         u'''insert or ignore into reddit_record (short_url, channel_id, domain, date_added, submitter) values(?, ?, ?, ?, ?)''',
                         reddit_entries)
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.error("Could not add reddit entries to database")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not add reddit entries to database")
+                        logging.debug(str(e))
 
             def get_reddit(self, channel_id=None, domain=None, date_added=None, processed=None, submitter=None,
                            exception=None, return_channel_id=True, return_domain=True, return_dateadded=False,
@@ -224,9 +258,12 @@ class DataBaseWrapper(object):
                 try:
                     self.cursor.execute(query, tuple(arglist))
                     return self.cursor.fetchall()
-                except sqlite3.Error, e:
-                    logging.error("Error fetching entries from reddit_record")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error fetching entries from reddit_record")
+                        logging.debug(str(e))
 
             def processed_older_than(self, the_time, old_flag):
                 """returns all entries from the reddit_record processed before a certain date
@@ -238,9 +275,12 @@ class DataBaseWrapper(object):
                         u"select channel_id, domain from reddit_record where date_added < ? and processed = 1 and old = ?",
                         (the_time, old_flag))
                     return self.cursor.fetchall()
-                except sqlite3.Error, e:
-                    logging.error("Could not remove processed reddit records older than " + str(the_time))
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not remove processed reddit records older than " + str(the_time))
+                        logging.debug(str(e))
 
             def remove_reddit_older_than(self, the_time):
                 """removes all entries from the reddit_record older than a certain date
@@ -250,9 +290,12 @@ class DataBaseWrapper(object):
                 try:
                     self.cursor.execute(u"delete from reddit_record where date_added < ?", (the_time,))
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.error("Could not remove reddit records older than " + str(the_time))
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not remove reddit records older than " + str(the_time))
+                        logging.debug(str(e))
 
             def have_submitter(self, post_list):
                 try:
@@ -267,18 +310,24 @@ class DataBaseWrapper(object):
                                 u'from reddit_record where short_url = ?', entry)
                                            .fetchone()[0])
                     return return_list
-                except sqlite3.Error, e:
-                    logging.error("Could not check have_submitter")
-                    logging.exception(e)
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not check have_submitter")
+                        logging.exception(e)
 
             def update_submitter(self, post_list):
                 try:
                     if not isinstance(post_list, list):
                         post_list = list(post_list)
                     self.cursor.executemany(u'update reddit_record set submitter = ? where short_url = ?', post_list)
-                except sqlite3.Error, e:
-                    logging.error("Could not update_submitter's")
-                    logging.exception(e)
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not update_submitter's")
+                        logging.exception(e)
 
             def remove_reddit(self, reddit_entries):
                 """removes the entries from the reddit_record
@@ -291,9 +340,12 @@ class DataBaseWrapper(object):
                     tupled = [(entry,) if not isinstance(entry, tuple) else entry for entry in reddit_entries]
                     self.cursor.executemany(u'delete from reddit_record where short_url = ?', tupled)
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.error("Could not remove short_url from database")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not remove short_url from database")
+                        logging.debug(str(e))
 
             def max_processed_from_user(self, not_found_value, strike_limit):
                 """Returns the maximum number of processed, non-exception posts for a single user for the given channels
@@ -312,9 +364,12 @@ class DataBaseWrapper(object):
                                               u' having count(short_url) >= ? '
                                               u'order by count(short_url) desc',
                                               (not_found_value, strike_limit)).fetchall()
-                except sqlite3.Error, e:
-                    logging.error('Could not get max_processed_from_user')
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error('Could not get max_processed_from_user')
+                        logging.debug(str(e))
 
 
             def add_channels(self, channel_entries):
@@ -330,10 +385,12 @@ class DataBaseWrapper(object):
                     self.cursor.executemany(u'''insert into channel_record (channel_id, domain) values(?, ?)''', unique)
                     self.db.commit()
                     return True
-                except sqlite3.Error, e:
-                    logging.error("Could not add channels to database")
-                    if __debug__:
-                        logging.exception(e)
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Could not add channels to database")
+                        logging.debug(str(e))
                 return False
 
             def channel_exists(self, channel_list):
@@ -346,10 +403,13 @@ class DataBaseWrapper(object):
                 try:
                     return [self.cursor.execute(u"""select channel_id from channel_record where channel_id = ?
                             and domain_eq(domain, ?)""", channel).fetchone() is not None for channel in channel_list]
-                except sqlite3.Error, e:
-                    logging.error("Error on channel exists check")
-                    logging.debug(str(e))
-                    return None
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on channel exists check")
+                        logging.debug(str(e))
+                        return None
 
             def reddit_exists(self, reddit_list):
                 """checks whether the specified reddit entries exist
@@ -360,9 +420,12 @@ class DataBaseWrapper(object):
                 try:
                     return [self.cursor.execute(u"""select short_url from reddit_record where short_url = ?""",
                                                 (entry,)).fetchone() is not None for entry in reddit_list]
-                except sqlite3.Error, e:
-                    logging.error("Error on reddit exists check")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on reddit exists check")
+                        logging.debug(str(e))
 
             def get_channels(self, blacklist=None, blacklist_not_equal=None, domain=None, strike_count=None,
                              added_by=None, id_filter=None, return_url=False, return_blacklist=False,
@@ -436,10 +499,13 @@ class DataBaseWrapper(object):
                 try:
                     self.cursor.execute(query, tuple(arglist))
                     return self.cursor.fetchall()
-                except sqlite3.Error, e:
-                    logging.error("Error on get_channels fetch.")
-                    logging.debug(
-                        "domain, blacklist, id_filter:" + str(domain) + ", " + str(blacklist) + ", " + str(id_filter))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on get_channels fetch.")
+                        logging.debug(
+                            "domain, blacklist, id_filter:" + str(domain) + ", " + str(blacklist) + ", " + str(id_filter))
 
             def set_blacklist(self, channel_entries, value, added_by, reason=None):
                 """Updates the black/whitelist for the given channel entries
@@ -458,9 +524,12 @@ class DataBaseWrapper(object):
                                                 u' where channel_id = ? and domain_eq(domain, ?)',
                                                 [(value, added_by, reason, channel[0], channel[1]) for channel in channel_entries])
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.error("Error on set_blacklist.")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on set_blacklist.")
+                        logging.debug(str(e))
 
             def check_blacklist(self, channel_entries, value):
                 """Checks that the black/whitelist for the given channel entries are set to the requested value
@@ -473,9 +542,12 @@ class DataBaseWrapper(object):
                     return [self.cursor.execute(u"""select channel_id from channel_record where channel_id = ?
                             and domain_eq(domain, ?) and blacklist = ?""", (channel[0], channel[1], value)).fetchone()
                             is not None for channel in channel_entries]
-                except sqlite3.Error, e:
-                    logging.error("Error on set_blacklist.")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on set_blacklist.")
+                        logging.debug(str(e))
 
             def get_blacklist(self, channel_entries):
                 """Gets the blacklist for the specified channels
@@ -489,9 +561,12 @@ class DataBaseWrapper(object):
                                                         u'channel_id = ? and domain_eq(domain, ?)', channel).fetchone())
                     list = [entry[0] if entry else Blacklist.BlacklistEnums.NotFound for entry in list]
                     return list
-                except sqlite3.Error, e:
-                    logging.error("Error on get_blacklist.")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on get_blacklist.")
+                        logging.debug(str(e))
 
             def set_strikes(self, channel_entries):
                 """Updates the strike count for the given channels
@@ -503,9 +578,12 @@ class DataBaseWrapper(object):
                     self.cursor.executemany(u'update channel_record set strike_count = ? where channel_id = ?'
                                             u' and domain_eq(domain, ?)', reordered)
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.error("Error on set_strikes.")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on set_strikes.")
+                        logging.debug(str(e))
 
             def subtract_strikes_and_mark(self, channel_entries, old_time):
                 """Subtracts from the strike count for the given channels
@@ -520,9 +598,12 @@ class DataBaseWrapper(object):
                         u'update reddit_record set old = 1 where date_added < ?', (old_time,)
                     )
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.error("Error on subtract_strikes.")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on subtract_strikes.")
+                        logging.debug(str(e))
 
 
             def add_strike(self, channel_entries):
@@ -534,9 +615,12 @@ class DataBaseWrapper(object):
                     self.cursor.executemany(u'update channel_record set strike_count = strike_count + ? where \
                                              channel_id = ? and domain_eq(domain, ?)', channel_entries)
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.error("Error on add_strikes.")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on add_strikes.")
+                        logging.debug(str(e))
 
             def set_processed(self, post_list):
                 """Sets the given channel entries processed to 1
@@ -547,9 +631,12 @@ class DataBaseWrapper(object):
                     tupled = [(val,) for val in post_list]
                     self.cursor.executemany(u'update reddit_record set processed = 1 where short_url = ?', tupled)
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.error("Error on set_processed.")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on set_processed.")
+                        logging.debug(str(e))
 
             def set_exception(self, post_list):
                 """Sets the given channel entries exception to 1
@@ -560,9 +647,12 @@ class DataBaseWrapper(object):
                     tupled = [(val,) for val in post_list]
                     self.cursor.executemany(u'update reddit_record set exception = 1 where short_url = ?', tupled)
                     self.db.commit()
-                except sqlite3.Error, e:
-                    logging.error("Error on set_processed.")
-                    logging.debug(str(e))
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        self.__on_lock()
+                    else:
+                        logging.error("Error on set_processed.")
+                        logging.debug(str(e))
 
 
         self.db = DataBase(self.databasefile, self.create_on_enter)
