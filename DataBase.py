@@ -307,8 +307,9 @@ class DataBaseWrapper(object):
                                               u' submitter is not null and processed == 1 and exception == 0 '
                                               u'and reddit_record.channel_id == channel_record.channel_id and'
                                               u' reddit_record.domain == channel_record.domain and'
-                                              u' channel_record.blacklist == not_found_value group by submitter '
-                                              u'having count(short_url) > ? '
+                                              u' channel_record.blacklist == ? group by submitter,'
+                                              u' reddit_record.channel_id, reddit_record.domain'
+                                              u' having count(short_url) >= ? '
                                               u'order by count(short_url) desc',
                                               (not_found_value, strike_limit)).fetchall()
                 except sqlite3.Error, e:
