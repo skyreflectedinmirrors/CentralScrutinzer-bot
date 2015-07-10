@@ -156,8 +156,8 @@ class YoutubeExtractor(IdentificationExtractor):
         except IndexError:
             #retry with 11 character limit
             if retry_id is None and len(id) > 11:
-                logging.warning('Retrying viewcount for id {} w/ 11 character id {}', id, id[:11])
-                return self.get_views(url, retry_id=id[:11])
+                logging.warning(u'Retrying channel_id for id {} w/ 11 character id {}'.format(id, id[:11]))
+                return self.channel_id(url, retry_id=id[:11])
             logging.info(u"Deleted or private youtube channel requested: {}, for url {}".format(id, str(url)))
             return None
         except Exception, e:
@@ -213,7 +213,7 @@ class YoutubeExtractor(IdentificationExtractor):
             logging.error(u"No items found for youtube id {} for url {}".format(id, str(url)))
             #retry with 11 character limit
             if retry_id is None and len(id) > 11:
-                logging.warning('Retrying viewcount for id {} w/ 11 character id {}', id, id[:11])
+                logging.warning(u'Retrying viewcount for id {} w/ 11 character id {}'.format(id, id[:11]))
                 return self.get_views(url, retry_id=id[:11])
             return None
         except Exception, e:
