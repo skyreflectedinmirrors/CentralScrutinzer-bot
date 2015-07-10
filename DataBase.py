@@ -272,7 +272,7 @@ class DataBaseWrapper(object):
                 """
                 try:
                     self.cursor.execute(
-                        u"select channel_id, domain from reddit_record where date_added < ? and processed = 1"
+                        u"select channel_id, domain from reddit_record where date_added < ? and processed = 1 "
                         u"and exception = 0 and old = ?",
                         (the_time, old_flag))
                     return self.cursor.fetchall()
