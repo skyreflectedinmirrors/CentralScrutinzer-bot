@@ -15,7 +15,7 @@ class StrikeCounter(RedditThread.RedditThread):
     :type owner: CentralScrutinizer.CentralScrutinizer
     """
 
-    def __init__(self, owner):
+    def __init__(self, owner, recount_strikes=False):
         super(StrikeCounter, self).__init__(owner, owner.policy)
         self.owner = owner
         self.policy = owner.policy
@@ -23,6 +23,14 @@ class StrikeCounter(RedditThread.RedditThread):
         self.praw = utilitymethods.create_multiprocess_praw(self.owner.credentials)
         self.sub = utilitymethods.get_subreddit(self.owner.credentials, self.praw)
         self.blacklists = self.owner.blacklists
+        self.recount_strikes = recount_strikes
+
+        if self.recount_strikes:
+            with DataBase.DataBaseWrapper(self.database_file, False) as db:
+                db.cursor.execute('update channel_record set strike_count = 0')
+                db.cursor.execute('update reddit_record set processed = 0')
+                db.cursor.execute('update reddit_record set exception = 0')
+                db.cursor.execute('update reddit_record set old = 0')
 
         self.regex_list = [ re.compile(r'^(?:\*\*)?/u/([\w\d_\-\*]+)[,\s]'), #Automod / removal reason
             re.compile(r'^All apologies /u/([\w\d_\-\*]+)[,\s]'), #raddit
@@ -140,7 +148,7 @@ class StrikeCounter(RedditThread.RedditThread):
                                 new_submitters_list.append((val, ids[i]))
                         if not self.check_exception(post):
                             #self.policy.info(u"Deleted post found {}".format(post.name), u"channel = {}, domain = {}".format(channels[i], domains[i]))
-                            if add_dates[i] > global_strike_date:
+                            if add_dates[i] > global_strike_date or self.recount_strikes:
                                 if not (channels[i], domains[i]) in increment_posts:
                                     increment_posts[(channels[i], domains[i])] = 1
                                 else:
@@ -205,6 +213,11 @@ class StrikeCounter(RedditThread.RedditThread):
 
             #remove older than scan period
             db.remove_reddit_older_than(history_date)
+
+            #turn off recount if true
+            if self.recount_strikes:
+                self.recount_strikes = False
+                logging.info('Strike recount completed successfully')
 
             if __debug__:
                 logging.info("Strike count completed successfully at {}".format(datetime.datetime.now()))

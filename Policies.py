@@ -63,6 +63,7 @@ class DefaultPolicy(object):
     User_Strike_Count_Max = 3 #user strike limit
     Use_Reddit_Analytics_For_Historical_Scan = False #much more detailed history (normally), currently RA seems offline
     Historial_Scan_Period = 24 * 60 * 60 # 1 day
+    force_recount = False
 
     def debug(self, message, text=u""):
         logging.debug(message + u"\t" + text)

@@ -87,7 +87,7 @@ class CentralScrutinizer(object):
 
         self.ss = ScanSub.SubScanner(self)
         self.bquery = BlacklistQuery.BlacklistQuery(self)
-        self.scount = StrikeCounter.StrikeCounter(self)
+        self.scount = StrikeCounter.StrikeCounter(self, recount_strikes=self.policy.force_recount)
         self.mlog = ScanSub.ModLogScanner(self)
         self.h_scan = ScanSub.HistoricalScanner(self)
 
