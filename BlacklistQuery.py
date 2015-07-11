@@ -140,7 +140,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         for domain in self.domains:
             self.domain_doc_string += u"  \n" + domain
 
-        self.doc_strings = [self.short_doc_string, self.print_doc_string, self.add_doc_string, self.remove_doc_string,
+        self.doc_strings = [self.short_doc_string, self.info_doc_string, self.add_doc_string, self.remove_doc_string,
                             self.update_doc_string, self.help_doc_string, self.domain_doc_string]
         self.doc_strings = [textwrap.dedent(s) for s in self.doc_strings]
         self.doc_strings = [s.replace(u"\n", u"  \n") for s in self.doc_strings]
