@@ -251,7 +251,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                             user,
                             submission[1], submission[2],
                             u'True' if submission[3] == 1 else u'False',
-                            u'True' if submission[4] == 0 else u'False'))
+                            u'True' if submission[4] == 0 and submission[3] == 1 else u'False'))
                 else:
                    return_string += self.__table_entry((u'Not Found', user, u'N/A', u'N/A', u'N/A', u'N/A'))
         if invalid_users:
@@ -407,7 +407,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                                     submission[2],
                                     id, blacklist.domains[0],
                                     u'True' if submission[1] == 1 else u'False',
-                                    u'True' if submission[3] == 0 else u'False'))
+                                    u'True' if submission[3] == 0 and submission[1] == 1 else u'False'))
                         else:
                             return_string += self.__table_entry((u'Not Found', u'Not Found', id, blacklist.domains[0],
                                                                 u'N/A', u'N/A'))
