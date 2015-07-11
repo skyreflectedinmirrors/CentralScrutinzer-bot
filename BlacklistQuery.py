@@ -224,7 +224,8 @@ class BlacklistQuery(RedditThread.RedditThread):
             match = self.user_name_match.search(line)
             if not match:
                 invalid_users.append(line)
-            valid_users.append(match.group(1))
+            else:
+                valid_users.append(match.group(1))
 
         if not len(valid_users):
             if len(invalid_users):
