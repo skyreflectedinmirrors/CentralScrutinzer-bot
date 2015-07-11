@@ -432,7 +432,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                 return self.__info_user(author, subject, text)
         except Exception as e:
             logging.exception(e)
-            Actions.send_message(author, u'Re: {}'.format(subject),
+            Actions.send_message(self.praw,
+                                 author, u'Re: {}'.format(subject),
                                  u'An error occured processing the following text, please file a bug report with'
                                  u' /u/arghdos:  \n{}'.format(text))
 
