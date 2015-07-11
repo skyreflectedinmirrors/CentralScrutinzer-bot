@@ -61,7 +61,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.list_command = re.compile(r'\b[lL]ist\b')
         self.channel_command = re.compile(r'\b[cC]hannel\b')
         self.user_command = re.compile(r'\b[uU]ser\b')
-        self.user_name_match = re.compile(r'(?:.com|\b)/u(?:ser)?/([\w\d_\-\*]+)/?\b')
+        self.user_name_match = re.compile(r'(?:.com|\b)?/u(?:ser)?/([\w\d_\-\*]+)/?\b')
 
         self.short_doc_string = \
             u"""Available Commands:
@@ -202,9 +202,8 @@ class BlacklistQuery(RedditThread.RedditThread):
             return False
 
     def __create_table(self, value_list):
-        header = u' | '.join(value_list)
-        header+= u'\n'
-        header+= [u'|'.join(['-' for x in val]) for val in value_list]
+        header = u' | '.join(value_list) + u'\n'
+        header += u'|'.join([u''.join([u'-' for x in val]) for val in value_list]) + u'\n'
         return header
     def __table_entry(self, value_list):
         return u' | '.join(value_list) + u'\n'
@@ -235,7 +234,6 @@ class BlacklistQuery(RedditThread.RedditThread):
             Actions.send_message(self.praw, author, u"RE: info user", message)
             return False
 
-        table_data = []
         return_string = self.__create_table((u'Link', u'Submitter', u'Channel', u'Domain', u'Deleted', u'Processed'))
         #with our list of usernames, query DB for submissions
         with DataBaseWrapper(self.owner.database_file, False) as db:
@@ -245,13 +243,14 @@ class BlacklistQuery(RedditThread.RedditThread):
                                     return_exception=True)
                 if val is not None and len(val):
                     for submission in val:
-                        table_data.append((u'http://redd.it/{}'.format(
+                        return_string += self.__table_entry((u'http://redd.it/{}'.format(
                             submission[0][submission[0].index('t3_')+ 3:]),
                             user,
                             submission[1], submission[2],
-                            submission[3] == 1, submission[4] == 0))
+                            u'True' if submission[3] == 1 else u'False',
+                            u'True' if submission[4] == 0 else u'False'))
                 else:
-                    table_data.append((u'Not Found', user, u'N/A', u'N/A', u'N/A', u'N/A'))
+                   return_string += self.__table_entry((u'Not Found', user, u'N/A', u'N/A', u'N/A', u'N/A'))
         if invalid_users:
             return_string += u'\n\n'
             return_string += u"Submission data for the following users could not be obtained:\n"
@@ -259,7 +258,7 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         return_string += u'\n\n'
         return_string += u'Note: Deletions and Exceptions are processed every {:.1} day(s),'.format(
-                         self.policy.Historial_Scan_Period / (24 * 60 * 60)) + \
+                         self.policy.Historial_Scan_Period / (24.0 * 60.0 * 60.0)) + \
                          u' and thus may not be updated within that time window.'
 
         return Actions.send_message(self.praw, author, u'Re: User Info query', return_string)
@@ -368,10 +367,9 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         valid_urls = []
         invalid_urls = []
-        table_data = []
         for blacklist in self.blacklists:
-            my_lines = [l for line in lines if blacklist.check_domain(l)]
-            overlap = [x for x in my_lines in valid_urls]
+            my_lines = [line for line in lines if blacklist.check_domain(line)]
+            overlap = [x for x in my_lines if x in valid_urls]
             #if it's already matched, it's bad
             if overlap:
                 invalid_urls.extend(overlap)
@@ -384,9 +382,9 @@ class BlacklistQuery(RedditThread.RedditThread):
             my_channel_ids = []
             for i, info in enumerate(my_channel_info):
                 if info is not None:
-                    valid_urls.append(info[0])
-                    my_channel_ids.extend(info[0])
+                    my_channel_ids.append(info[0])
                 else:
+                    valid_urls.remove(my_lines[i])
                     invalid_urls.append(my_lines[i])
             return_string = self.__create_table((u'Link', u'Submitter',u'Channel', u'Domain', u'Deleted', u'Processed'))
             #with our list of channel ids, query DB for submissions
@@ -395,18 +393,20 @@ class BlacklistQuery(RedditThread.RedditThread):
                     for id in my_channel_ids:
                         #val is (short_url, processed, submitter, exception
                         val = db.get_reddit(channel_id=id, domain=blacklist.domains[0],
+                                            return_domain=False, return_id=False,
                                             return_processed=True, return_submitter=True,
                                             return_exception=True)
                         if val is not None and len(val):
                             for submission in val:
-                                table_data.append((u'http://redd.it/{}'.format(
+                                return_string += self.__table_entry((u'http://redd.it/{}'.format(
                                     submission[0][submission[0].index('t3_')+ 3:]),
                                     submission[2],
                                     id, blacklist.domains[0],
-                                    submission[1] == 1, submission[3] == 0))
+                                    u'True' if submission[3] == 1 else u'False',
+                                    u'True' if submission[4] == 0 else u'False'))
                         else:
-                            table_data.append((u'Not Found', u'Not Found', id, blacklist.domains[0], u'N/A', u'N/A'))
-                return_string += self.__table_entry(table_data)
+                            return_string += self.__table_entry((u'Not Found', u'Not Found', id, blacklist.domains[0],
+                                                                u'N/A', u'N/A'))
 
         if invalid_urls:
             return_string += u'\n\n'
@@ -415,7 +415,7 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         return_string += u'\n\n'
         return_string += u'Note: Deletions and Exceptions are processed every {:.1} day(s),'.format(
-                         self.policy.Historial_Scan_Period / (24 * 60 * 60)) + \
+                         self.policy.Historial_Scan_Period / (24.0 * 60.0 * 60.0)) + \
                          u' and thus may not be updated within that time window.'
 
         return Actions.send_message(self.praw, author, u'Re: Channel Info query', return_string)
