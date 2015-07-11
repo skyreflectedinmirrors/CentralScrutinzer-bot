@@ -81,7 +81,7 @@ class BlacklistQuery(RedditThread.RedditThread):
 
 
                             Usage 2:
-                            subject: info user
+                            subject: info user (limit=10)
                             body: /u/username1
                             /u/username2...
 
@@ -92,7 +92,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                             and whether the submission was deleted without a proper exception\\*
 
                             Usage 3:
-                            subject: info channel
+                            subject: info channel (limit=10)
                             body: url list (url of a video from the desired channels from any domain, one per line)
 
                             Returns a table of:
@@ -154,6 +154,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.force = re.compile(u"--[fF]orce\\b")
         self.line_end = re.compile("\\s*$")
         self.escape_chars = re.compile("(\\\\)|(\\\\\")")
+        self.limit_match = re.compile(r'\blimit\s*=\s*(\d+)\b')
         self.message_cache = []
 
 
@@ -210,7 +211,7 @@ class BlacklistQuery(RedditThread.RedditThread):
     def __table_entry(self, value_list):
         return u' | '.join(self.__sanitize(value_list)) + u'\n'
 
-    def __info_user(self, author, subject, text):
+    def __info_user(self, author, subject, text, limit):
         # check that we have text
         lines = [l.strip() for l in self.line_splitter.split(text) if l is not None and len(l.strip())]
         if not len(lines):
@@ -242,7 +243,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             for user in valid_users:
                 #val is (short_url, channel_id, domain, processed, exception
                 val = db.get_reddit(submitter=user, return_channel_id=True, return_domain=True, return_processed=True,
-                                    return_exception=True)
+                                    return_exception=True, sort_by_new=True, limit=limit)
                 if val is not None and len(val):
                     for submission in val:
                         return_string += self.__table_entry((u'http://redd.it/{}'.format(
@@ -354,7 +355,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         Actions.send_message(self.praw, author, return_subject, out_str)
         return True
 
-    def __info_channels(self, author, subject, text):
+    def __info_channels(self, author, subject, text, limit):
 
         #we want to find
         #a table of:
@@ -397,7 +398,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                         val = db.get_reddit(channel_id=id, domain=blacklist.domains[0],
                                             return_domain=False, return_channel_id=False,
                                             return_processed=True, return_submitter=True,
-                                            return_exception=True)
+                                            return_exception=True, sort_by_new=True,
+                                            limit=limit)
                         if val is not None and len(val):
                             for submission in val:
                                 return_string += self.__table_entry((u'http://redd.it/{}'.format(
@@ -426,13 +428,18 @@ class BlacklistQuery(RedditThread.RedditThread):
 
     def __info(self, author, subject, text):
         try:
+            limit = 10
+            #first find a limit if it exists
+            match = self.limit_match.search(subject)
+            if match:
+                limit = int(match.group(1))
             #we must figure out the case
             if self.list_command.search(subject):
                 return self.__info_list(author, subject, text)
             elif self.channel_command.search(subject):
-                return self.__info_channels(author, subject, text)
+                return self.__info_channels(author, subject, text, limit)
             elif self.user_command.search(subject):
-                return self.__info_user(author, subject, text)
+                return self.__info_user(author, subject, text, limit)
         except Exception as e:
             logging.exception(e)
             Actions.send_message(self.praw,

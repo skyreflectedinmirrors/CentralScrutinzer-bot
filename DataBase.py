@@ -207,7 +207,8 @@ class DataBaseWrapper(object):
 
             def get_reddit(self, channel_id=None, domain=None, date_added=None, processed=None, submitter=None,
                            exception=None, return_channel_id=True, return_domain=True, return_dateadded=False,
-                           return_processed=False, return_submitter=False, return_exception=False):
+                           return_processed=False, return_submitter=False, return_exception=False,
+                           sort_by_new=False, limit=None):
                 """returns a list of reddit entries matching the provided search modifiers (i.e. channel_id, domain, date_added)
 
                 :returns: a list of tuples of the form (short_url, channel_id*, domain*, date_added*, submitter* (*if specified))
@@ -257,6 +258,11 @@ class DataBaseWrapper(object):
                     arglist.append(exception)
                 if not len(arglist):
                     return None
+                if sort_by_new:
+                    query += u' order by date_added desc'
+                if limit is not None:
+                    query += u' limit ?'
+                    arglist.append(limit)
                 try:
                     self.cursor.execute(query, tuple(arglist))
                     return self.cursor.fetchall()
