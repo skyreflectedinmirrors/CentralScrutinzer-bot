@@ -10,6 +10,8 @@ import re
 import textwrap
 import RedditThread
 import time
+from Blacklist import BlacklistEnums
+from DataBase import DataBaseWrapper
 
 
 class BlacklistQuery(RedditThread.RedditThread):
@@ -46,38 +48,66 @@ class BlacklistQuery(RedditThread.RedditThread):
                                     r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?))'  # domain...
                                     r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
-        self.print_command = re.compile(r"^[pP]rint\b")
+        self.info_command = re.compile(r"^[iI]nfo\b")
         self.add_command = re.compile(r"^(\+)|([aA]dd)\b")
         self.remove_command = re.compile(r"^(\-)|([rR]emove)\b")
         self.update_command = re.compile(r"^[uU]pdate[- ]*[mM]ods\b")
         self.help_command = re.compile(r"^[hH]elp(\b|$)")
-        self.base_commands = [self.print_command, self.add_command, self.remove_command, self.update_command,
+        self.base_commands = [self.info_command, self.add_command, self.remove_command, self.update_command,
                               self.help_command]
 
         self.blist_command = re.compile(r"\b[Bb]lacklist\b")
         self.wlist_command = re.compile(r"\b[wW]hitelist\b")
+        self.list_command = re.compile(r'\b[lL]ist\b')
+        self.channel_command = re.compile(r'\b[cC]hannel\b')
+        self.user_command = re.compile(r'\b[uU]ser\b')
+        self.user_name_match = re.compile(r'(?:.com|\b)/u(?:ser)?/([\w\d_\-\*]+)/?\b')
 
         self.short_doc_string = \
             u"""Available Commands:
                             print/add/remove/update-mods/help"""
-        self.print_doc_string = \
+        self.info_doc_string = \
             u"""
-                            **Print** command -- returns the black/whitelist for a given domain (optional) id filter.
-                            Usage:
-                            subject: print whitelist/blacklist (pick one)
-                            body: domain (e.g. youtube, or soundcloud.com)
-                            filter (optional)
+                            **Info** command -- returns various info about the given channel / user / blacklist
+                            Usage 1:
+                            subject: info list
+                            body: domain: youtube.com (e.g., is optional)
+                            filter: KEXP (optional, regex supported)
+
+                            Returns a table of:
+                                channel, domain, black/whitelist status, lister, list date, reason for listing
+
+                            Where each channel return matches the optional filter and domain
+
+
+                            Usage 2:
+                            subject: info user
+                            body: /u/username1
+                            /u/username2...
+
+                            Returns a table of:
+                                submission, user, channel, domain, strike, exception
+
+                            The list of submissions for a given user(s) along with corresponding channel / domain,
+                            and whether the submission was deleted without a proper exception\\*
+
+                            Usage 3:
+                            subject: info channel
+                            body: url list (url of a video from the desired channels from any domain, one per line)
+
+                            Returns a table of:
+                                submission, user, channel, domain, strike, exception
+
+                            The list of submissions for a channel / domain with corresponding user, and whether the
+                            submission was deleted without a proper exception\\*
+
+                            \\*  Note: exceptions are updated daily by default
+
                             """
         self.add_doc_string = \
             u"""
                             **Add** command -- adds the channel associated with the url to the black/whitelist
                             Usage:
-                            subject: +whitelist/blacklist (pick one)
-                            body: domain  (e.g. youtube, or soundcloud.com)
-                            id list  (channel ids, one per line or comma separated, each id is expected to be in quotes)
-
-                            **OR**
-
                             subject: +whitelist/blacklist (pick one)
                             body: url list  (url of a video from this channel, one per line)
                             """
@@ -85,12 +115,6 @@ class BlacklistQuery(RedditThread.RedditThread):
             u"""
                             **Remove** command -- removes the channel associated with the domain and id (or optionally url) from the black/whitelist
                             Usage:
-                            subject: -whitelist/blacklist
-                            body: domain  (e.g. youtube, or soundcloud.com)
-                            id list  (channel ids, one per line or comma separated, each id is expected to be in quotes)
-
-                            **OR**
-
                             subject: -whitelist/blacklist (pick one)
                             body: url list  (url of a video from this channel, one per line)
                             """
@@ -131,7 +155,6 @@ class BlacklistQuery(RedditThread.RedditThread):
         self.line_end = re.compile("\\s*$")
         self.escape_chars = re.compile("(\\\\)|(\\\\\")")
         self.message_cache = []
-        self.saved_messages = []
 
 
     def __is_escaped(self, i, line):
@@ -148,42 +171,6 @@ class BlacklistQuery(RedditThread.RedditThread):
                     entry[match.end(group_num) + 1:]
             match = self.escape_chars.search(entry)
         return entry
-
-    def quote_splitter(self, line, force=False, warn_width=20):
-        entries = []
-        error_entries = []
-        start_index = None
-        for i, char in enumerate(line):
-            escaped = self.__is_escaped(i, line)
-            if escaped:
-                # check character
-                if char != "\\" and char != "\"":
-                    error_entries.append(i)
-            elif char == "\"":
-                if start_index is not None:
-                    # final quote?
-                    if self.__end_of_line(i + 1, line):
-                        entries.append((start_index + 1, i))
-                    # followed by comma?
-                    elif self.comma_match.match(line[i + 1:]):
-                        entries.append((start_index + 1, i))
-                        start_index = None
-                    # otherwise it's an error
-                    else:
-                        error_entries.append(i)
-                else:
-                    # start of a new id
-                    start_index = i
-
-        stringified = [line[tup[0]:tup[1]] for tup in entries if tup[0] + 1 < tup[1]]
-        if len(error_entries):
-            # go through and identify which entry each belongs to
-            for index, error_loc in enumerate(error_entries):
-                for i, entry in enumerate(entries):
-                    if entry[0] <= error_loc < entry[1]:
-                        error_entries[index] = stringified[i]
-            return stringified, error_entries
-        return stringified
 
     def shutdown(self):
         pass
@@ -214,69 +201,240 @@ class BlacklistQuery(RedditThread.RedditThread):
                 logging.exception(e)
             return False
 
-    def __print(self, author, subject, text):
-        """
-        subject: print whitelist/blacklist (pick one)
-        body: domain (e.g. youtube, or soundcloud.com)
-        filter (optional)
-        """
+    def __create_table(self, value_list):
+        header = u' | '.join(value_list)
+        header+= u'\n'
+        header+= [u'|'.join(['-' for x in val]) for val in value_list]
+        return header
+    def __table_entry(self, value_list):
+        return u' | '.join(value_list) + u'\n'
 
-        # get black/whitelist
-        blacklist = None
-        result = self.blist_command.search(subject)
-        if result:
-            blacklist = True
-        result = self.wlist_command.search(subject)
-        if result:
-            blacklist = False
-        if blacklist is None:
-            Actions.send_message(self.praw, author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
-                                u"Could not determine blacklist/whitelist from subject line  \n\
-                                 Subject: {}".format(subject))
-            return False
-
+    def __info_user(self, author, subject, text):
         # check that we have text
         lines = [l.strip() for l in self.line_splitter.split(text) if l is not None and len(l.strip())]
         if not len(lines):
-            Actions.send_message(self.praw, author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
-                                 u"No domain specified in text:  \n{}".format(text))
+            Actions.send_message(self.praw, author, u"RE: info user",
+                                 u"No users specified in text:  \n{}".format(text))
             return False
 
-        blist = None
-        # get domain
-        for b in self.blacklists:
-            if b.check_domain(lines[0]):
-                blist = b
-                break
+        invalid_users = []
+        valid_users = []
+        #now go through the lines and make sure they're all usernames
+        for line in lines:
+            match = self.user_name_match.search(line)
+            if not match:
+                invalid_users.append(line)
+            valid_users.append(match.group(1))
+
+        if not len(valid_users):
+            if len(invalid_users):
+                message = u'The following were not recognized as usernames:  \n{}'.format(u'  \n'.join(invalid_users))
+            else:
+                message = u"No users specified in text: ".format(text)
+            Actions.send_message(self.praw, author, u"RE: info user", message)
+            return False
+
+        table_data = []
+        return_string = self.__create_table((u'Link', u'Submitter', u'Channel', u'Domain', u'Deleted', u'Processed'))
+        #with our list of usernames, query DB for submissions
+        with DataBaseWrapper(self.owner.database_file, False) as db:
+            for user in valid_users:
+                #val is (short_url, channel_id, domain, processed, exception
+                val = db.get_reddit(submitter=user, return_channel_id=True, return_domain=True, return_processed=True,
+                                    return_exception=True)
+                if val is not None and len(val):
+                    for submission in val:
+                        table_data.append((u'http://redd.it/{}'.format(
+                            submission[0][submission[0].index('t3_')+ 3:]),
+                            user,
+                            submission[1], submission[2],
+                            submission[3] == 1, submission[4] == 0))
+                else:
+                    table_data.append((u'Not Found', user, u'N/A', u'N/A', u'N/A', u'N/A'))
+        if invalid_users:
+            return_string += u'\n\n'
+            return_string += u"Submission data for the following users could not be obtained:\n"
+            return_string += u'\n'.join(invalid_users)
+
+        return_string += u'\n\n'
+        return_string += u'Note: Deletions and Exceptions are processed every {:.1} day(s),'.format(
+                         self.policy.Historial_Scan_Period / (24 * 60 * 60)) + \
+                         u' and thus may not be updated within that time window.'
+
+        return Actions.send_message(self.praw, author, u'Re: User Info query', return_string)
+
+    def __info_list(self, author, subject, text):
+        # check that we have text
+        lines = [l.strip() for l in self.line_splitter.split(text) if l is not None and len(l.strip())]
+        if not len(lines):
+            Actions.send_message(self.praw, author, u"RE: info list",
+                                 u"No channel info specified in text:  \n{}".format(text))
+            return False
+
+        blist = []
+        myfilter = []
+        return_subject = u'Re: Info list'
+        return_domains = []
+        return_filters = []
+        for line in lines:
+            domain_match = re.search(r'^domain:\s*([^\n]+)$', line)
+            if domain_match:
+                potential_domain = domain_match.group(1).strip()
+                # get domain
+                found = False
+                for b in self.blacklists:
+                    if b.check_domain(potential_domain):
+                        return_domains.append(potential_domain)
+                        blist.append(b)
+                        found = True
+                        break
+                if not found:
+                    Actions.send_message(self.praw, author, u"RE: info list", u"{} not a valid domain."\
+                                         .format(potential_domain))
+                    return False
+                continue
+            filter_match = re.search(r'^filter:\s*([^\n]+)$', line)
+            if filter_match:
+                the_filter = filter_match.group(1).strip()
+                myfilter.append(the_filter)
+                return_filters.append(the_filter)
+                continue
+            Actions.send_message(self.praw, author, u"RE: info list", u"Text not recognized:  \n{}."\
+                                         .format(line))
+
+        if return_domains:
+            return_subject += u' w/ domains: {}'.format(u', '.join([return_domains]))
+        if return_filters:
+            return_subject += u' w/ filters: {}'.format(u', '.join([return_filters]))
+
+        #if no domain, check all
         if not blist:
-            Actions.send_message(self.praw, author, u"RE: {}list print".format(u"Black" if blacklist else u"White"), \
-                                 u"Could not find valid domain specified in text:  \n{}".format(lines[0]))
-            return False
+            blist = self.blacklists
 
-        myfilter = None
-        # get filter
-        if len(lines) > 1:
-            myfilter = lines[1]
+        results = []
+        for blacklist in blist:
+            results[blacklist.domains[0]] = []
+            if myfilter:
+                for filter in myfilter:
+                    b_chann = blist.get_blacklisted_channels(filter)
+                    w_chann = blist.get_whitelisted_channels(filter)
 
-        if blacklist:
-            results = blist.get_blacklisted_channels(myfilter)
-        else:
-            results = blist.get_whitelisted_channels(myfilter)
-        if results is None:
-            Actions.send_message(self.praw, author, subject, u"Error querying blacklist, please submit bug report to \
-                                 /r/centralscrutinizer")
-            return False
-        elif len(results):
-            results = [result[0] for result in results]
+                    if b_chann or w_chann:
+                        results.append(u'Channel results for domain {} w/ filter {}:'\
+                                       .format(blacklist.domains[0], filter))
+                    if b_chann:
+                        results.append(u'Blacklisted channels:')
+                        results.extend([channel[0] for channel in b_chann])
+
+                    if w_chann:
+                        results.append(u'Whitelisted channels:')
+                        results.extend([channel[0] for channel in w_chann])
+
+            else:
+                b_chann = blist.get_blacklisted_channels()
+                w_chann = blist.get_whitelisted_channels()
+
+                if b_chann or w_chann:
+                    results.append(u'Channel results for domain {}:'\
+                                   .format(blacklist.domains[0]))
+                if b_chann:
+                    results.append(u'Blacklisted channels:')
+                    results.extend([channel[0] for channel in b_chann])
+
+                if w_chann:
+                    results.append(u'Whitelisted channels:')
+                    results.extend([channel[0] for channel in w_chann])
+
+        if len(results):
             out_str = u"  \n".join(results)
         else:
             out_str = u"No matches found!"
-        subject = u"RE:{}list print".format(u"black" if blacklist else u"white")
-        subject += u" w/ domain " + blist.domains[0]
-        if myfilter:
-            subject += u" and filter " + myfilter
-        Actions.send_message(self.praw, author, subject, u"Results:  \n" + out_str)
+        Actions.send_message(self.praw, author, return_subject, out_str)
         return True
+
+    def __info_channels(self, author, subject, text):
+
+        #we want to find
+        #a table of:
+        #   submission, user, channel, domain, strike
+
+        #check that we have text
+        lines = [l.strip() for l in self.line_splitter.split(text) if l is not None and len(l.strip())]
+        if not len(lines):
+            Actions.send_message(self.praw, author, u"RE: info list",
+                                 u"No valid channels specified in text:  \n{}".format(text))
+            return False
+
+        valid_urls = []
+        invalid_urls = []
+        table_data = []
+        for blacklist in self.blacklists:
+            my_lines = [l for line in lines if blacklist.check_domain(l)]
+            overlap = [x for x in my_lines in valid_urls]
+            #if it's already matched, it's bad
+            if overlap:
+                invalid_urls.extend(overlap)
+                valid_urls = [v for v in valid_urls if v not in overlap]
+                my_lines = [line for line in my_lines if not line in overlap]
+            if not len(my_lines):
+                continue
+            #if we have data, get the channel ids
+            my_channel_info = [blacklist.data.channel_id(url=url) for url in my_lines]
+            my_channel_ids = []
+            for i, info in enumerate(my_channel_info):
+                if info is not None:
+                    valid_urls.append(info[0])
+                    my_channel_ids.extend(info[0])
+                else:
+                    invalid_urls.append(my_lines[i])
+            return_string = self.__create_table((u'Link', u'Submitter',u'Channel', u'Domain', u'Deleted', u'Processed'))
+            #with our list of channel ids, query DB for submissions
+            if my_channel_ids:
+                with DataBaseWrapper(self.owner.database_file, False) as db:
+                    for id in my_channel_ids:
+                        #val is (short_url, processed, submitter, exception
+                        val = db.get_reddit(channel_id=id, domain=blacklist.domains[0],
+                                            return_processed=True, return_submitter=True,
+                                            return_exception=True)
+                        if val is not None and len(val):
+                            for submission in val:
+                                table_data.append((u'http://redd.it/{}'.format(
+                                    submission[0][submission[0].index('t3_')+ 3:]),
+                                    submission[2],
+                                    id, blacklist.domains[0],
+                                    submission[1] == 1, submission[3] == 0))
+                        else:
+                            table_data.append((u'Not Found', u'Not Found', id, blacklist.domains[0], u'N/A', u'N/A'))
+                return_string += self.__table_entry(table_data)
+
+        if invalid_urls:
+            return_string += u'\n\n'
+            return_string += u"Channel data for the following urls could not be obtained:\n"
+            return_string += u'\n'.join(invalid_urls)
+
+        return_string += u'\n\n'
+        return_string += u'Note: Deletions and Exceptions are processed every {:.1} day(s),'.format(
+                         self.policy.Historial_Scan_Period / (24 * 60 * 60)) + \
+                         u' and thus may not be updated within that time window.'
+
+        return Actions.send_message(self.praw, author, u'Re: Channel Info query', return_string)
+
+
+
+    def __info(self, author, subject, text):
+        try:
+            #we must figure out the case
+            if self.list_command.search(subject):
+                return self.__info_list(author, subject, text)
+            elif self.channel_command.search(subject):
+                return self.__info_channels(author, subject, text)
+            elif self.user_command.search(subject):
+                return self.__info_user(author, subject, text)
+        except Exception as e:
+            logging.exception(e)
+            Actions.send_message(author, u'Re: {}'.format(subject),
+                                 u'An error occured processing the following text, please file a bug report with'
+                                 u' /u/arghdos:  \n{}'.format(text))
 
 
     def __add_remove(self, author, subject, text, add):
@@ -487,8 +645,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                 elif matches[0] == self.update_command:
                     self.update_mods(message.author.name)
                 # print query
-                elif matches[0] == self.print_command:
-                    result = self.__print(message.author.name, subject, text)
+                elif matches[0] == self.info_command:
+                    result = self.__info(message.author.name, subject, text)
                 # help query
                 elif matches[0] == self.help_command:
                     Actions.send_message(self.praw, message.author.name, u"RE:{}".format(message.subject),

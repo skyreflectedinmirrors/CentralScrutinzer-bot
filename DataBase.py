@@ -207,7 +207,7 @@ class DataBaseWrapper(object):
 
             def get_reddit(self, channel_id=None, domain=None, date_added=None, processed=None, submitter=None,
                            exception=None, return_channel_id=True, return_domain=True, return_dateadded=False,
-                           return_submitter=False, return_exception=False):
+                           return_processed=False, return_submitter=False, return_exception=False):
                 """returns a list of reddit entries matching the provided search modifiers (i.e. channel_id, domain, date_added)
 
                 :returns: a list of tuples of the form (short_url, channel_id*, domain*, date_added*, submitter* (*if specified))
@@ -220,6 +220,8 @@ class DataBaseWrapper(object):
                     query += u', domain'
                 if return_dateadded:
                     query += u', date_added'
+                if return_processed:
+                    query += u', processed'
                 if return_submitter:
                     query += u', submitter'
                 if return_exception:
