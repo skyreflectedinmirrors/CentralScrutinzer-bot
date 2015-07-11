@@ -231,7 +231,7 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         if not len(valid_users):
             if len(invalid_users):
-                message = u'The following were not recognized as usernames:  \n{}'.format(u'  \n'.join(invalid_users))
+                message = u'The following were not recognized as usernames:  \n{}'.format(u', '.join(invalid_users))
             else:
                 message = u"No users specified in text: ".format(text)
             Actions.send_message(self.praw, author, u"RE: info user", message)
@@ -309,9 +309,9 @@ class BlacklistQuery(RedditThread.RedditThread):
                                          .format(line))
 
         if return_domains:
-            return_subject += u' w/ domains: {}'.format(u', '.join([return_domains]))
+            return_subject += u' w/ domains: {}'.format(u', '.join(return_domains))
         if return_filters:
-            return_subject += u' w/ filters: {}'.format(u', '.join([return_filters]))
+            return_subject += u' w/ filters: {}'.format(u', '.join(return_filters))
 
         #if no domain, check all
         if not blist:
@@ -319,11 +319,10 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         results = []
         for blacklist in blist:
-            results[blacklist.domains[0]] = []
             if myfilter:
                 for filter in myfilter:
-                    b_chann = blist.get_blacklisted_channels(filter)
-                    w_chann = blist.get_whitelisted_channels(filter)
+                    b_chann = blacklist.get_blacklisted_channels(filter)
+                    w_chann = blacklist.get_whitelisted_channels(filter)
 
                     if b_chann or w_chann:
                         results.append(u'Channel results for domain {} w/ filter {}:'\
@@ -337,8 +336,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                         results.extend([channel[0] for channel in w_chann])
 
             else:
-                b_chann = blist.get_blacklisted_channels()
-                w_chann = blist.get_whitelisted_channels()
+                b_chann = blacklist.get_blacklisted_channels()
+                w_chann = blacklist.get_whitelisted_channels()
 
                 if b_chann or w_chann:
                     results.append(u'Channel results for domain {}:'\
@@ -390,7 +389,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             for i, info in enumerate(my_channel_info):
                 if info is not None:
                     if not (info[0], blacklist.domains[0]) in found_channels:
-                        found_channels.append(info[0], blacklist.domains[0])
+                        found_channels.append((info[0], blacklist.domains[0]))
                         my_channel_ids.append(info[0])
                 else:
                     valid_urls.remove(my_lines[i])
