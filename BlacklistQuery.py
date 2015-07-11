@@ -65,7 +65,7 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         self.short_doc_string = \
             u"""Available Commands:
-                            print/add/remove/update-mods/help"""
+                            info/add/remove/update-mods/help"""
         self.info_doc_string = \
             u"""
                             **Info** command -- returns various info about the given channel / user / blacklist
