@@ -205,8 +205,10 @@ class BlacklistQuery(RedditThread.RedditThread):
         header = u' | '.join(value_list) + u'\n'
         header += u'|'.join([u''.join([u'-' for x in val]) for val in value_list]) + u'\n'
         return header
+    def __sanitize(self, value_list):
+        return tuple([x if x is not None else u'N/A' for x in value_list])
     def __table_entry(self, value_list):
-        return u' | '.join(value_list) + u'\n'
+        return u' | '.join(self.__sanitize(value_list)) + u'\n'
 
     def __info_user(self, author, subject, text):
         # check that we have text
@@ -234,7 +236,7 @@ class BlacklistQuery(RedditThread.RedditThread):
             Actions.send_message(self.praw, author, u"RE: info user", message)
             return False
 
-        return_string = self.__create_table((u'Link', u'Submitter', u'Channel', u'Domain', u'Deleted', u'Processed'))
+        return_string = self.__create_table((u'Link', u'Submitter', u'Channel', u'Domain', u'Deleted', u'Exception'))
         #with our list of usernames, query DB for submissions
         with DataBaseWrapper(self.owner.database_file, False) as db:
             for user in valid_users:
@@ -386,14 +388,14 @@ class BlacklistQuery(RedditThread.RedditThread):
                 else:
                     valid_urls.remove(my_lines[i])
                     invalid_urls.append(my_lines[i])
-            return_string = self.__create_table((u'Link', u'Submitter',u'Channel', u'Domain', u'Deleted', u'Processed'))
+            return_string = self.__create_table((u'Link', u'Submitter',u'Channel', u'Domain', u'Deleted', u'Exception'))
             #with our list of channel ids, query DB for submissions
             if my_channel_ids:
                 with DataBaseWrapper(self.owner.database_file, False) as db:
                     for id in my_channel_ids:
                         #val is (short_url, processed, submitter, exception
                         val = db.get_reddit(channel_id=id, domain=blacklist.domains[0],
-                                            return_domain=False, return_id=False,
+                                            return_domain=False, return_channel_id=False,
                                             return_processed=True, return_submitter=True,
                                             return_exception=True)
                         if val is not None and len(val):
@@ -402,8 +404,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                                     submission[0][submission[0].index('t3_')+ 3:]),
                                     submission[2],
                                     id, blacklist.domains[0],
-                                    u'True' if submission[3] == 1 else u'False',
-                                    u'True' if submission[4] == 0 else u'False'))
+                                    u'True' if submission[1] == 1 else u'False',
+                                    u'True' if submission[3] == 0 else u'False'))
                         else:
                             return_string += self.__table_entry((u'Not Found', u'Not Found', id, blacklist.domains[0],
                                                                 u'N/A', u'N/A'))
