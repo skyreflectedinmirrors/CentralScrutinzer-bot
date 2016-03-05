@@ -94,7 +94,7 @@ class StrikeCounter(RedditThread.RedditThread):
             history_date = now - self.policy.Strike_Counter_Scan_History
             entries = db.get_reddit(date_added=history_date, processed=0, return_dateadded=True)
             if entries is None:
-                logging.warning("No reddit entries found in database...")
+                logging.warning(u"No reddit entries found in database...")
                 return
 
             new_strike_channels = []
@@ -112,13 +112,13 @@ class StrikeCounter(RedditThread.RedditThread):
                 domains = list(domains)
                 loaded = Actions.get_by_ids(self.praw, ids)
                 if not loaded:
-                    logging.info("Historical posts not loaded...")
+                    logging.info(u"Historical posts not loaded...")
                     return
 
                 #make sure posts retrieved
                 posts = [post for post in loaded]
                 if not posts:
-                    logging.info("Bad post retrieve")
+                    logging.info(u"Bad post retrieve")
                     return
 
                 #make sure channels exist
@@ -132,7 +132,7 @@ class StrikeCounter(RedditThread.RedditThread):
                 #resolve all the added ids
                 if add_channels:
                     if not db.add_channels(add_channels):
-                        logging.info("Error adding channels to channel_record, skipping processing of posts")
+                        logging.info(u"Error adding channels to channel_record, skipping processing of posts")
                         continue #if there was an error adding the channels, don't mark as processed
 
 
@@ -163,7 +163,7 @@ class StrikeCounter(RedditThread.RedditThread):
                     #add strikes
                     db.add_strike([(increment_posts[key],) + key  for key in increment_posts])
                     if __debug__:
-                        logging.info("Strike Counter found {} new deleted posts...".format(len(increment_posts)))
+                        logging.info(u"Strike Counter found {} new deleted posts...".format(len(increment_posts)))
 
                 if len(increment_posts) or len(excepted_posts):
                     #remove from consideration (so we don't count them over and over)
@@ -183,16 +183,16 @@ class StrikeCounter(RedditThread.RedditThread):
 
             if channels and len(channels):
                 if __debug__:
-                    logging.info("{} new channels added to the blacklist".format(len(channels)))
+                    logging.info(u"{} new channels added to the blacklist".format(len(channels)))
                 db.set_blacklist(channels, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'],
-                                 "Global strike count exceeded")
+                                 u"Global strike count exceeded")
 
             #check for user strike counts
             user_strikes = db.max_processed_from_user(not_found_value=Blacklist.BlacklistEnums.NotFound,
                                                       strike_limit=self.policy.User_Strike_Count_Max)
             if len(user_strikes):
-                reason_list = ["User strike count exceeded by {} ({} strikes counted) for channel {} on domain {}" \
-                               "".format(user[1], user[0], user[2], user[3]) for user in user_strikes]
+                reason_list = [u"User strike count exceeded by {} ({} strikes counted) for channel {} on domain {}" \
+                               u"".format(user[1], user[0], user[2], user[3]) for user in user_strikes]
                 new_blacklist = [(user[2], user[3]) for user in user_strikes]
                 db.set_blacklist(new_blacklist, Blacklist.BlacklistEnums.Blacklisted, self.owner.credentials['USERNAME'],
                                  reason_list)
@@ -217,10 +217,10 @@ class StrikeCounter(RedditThread.RedditThread):
             #turn off recount if true
             if self.recount_strikes:
                 self.recount_strikes = False
-                logging.info('Strike recount completed successfully')
+                logging.info(u'Strike recount completed successfully')
 
             if __debug__:
-                logging.info("Strike count completed successfully at {}".format(datetime.datetime.now()))
+                logging.info(u"Strike count completed successfully at {}".format(datetime.datetime.now()))
     def run(self):
         while True:
             #check for pause
@@ -230,7 +230,7 @@ class StrikeCounter(RedditThread.RedditThread):
             try:
                 self.scan()
             except Exception, e:
-                logging.error("Exception occured while scanning old reddit posts")
+                logging.error(u"Exception occured while scanning old reddit posts")
                 if __debug__:
                     logging.exception(e)
                 self.log_error()

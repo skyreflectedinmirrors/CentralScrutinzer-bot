@@ -123,7 +123,7 @@ class CentralScrutinizer(object):
             thread.wait.clear()
 
     @classmethod
-    def request_exit(self):
+    def request_exit(cls):
         #send the shutdown signal
-        for thread in self.reddit_threads:
+        for thread in cls.reddit_threads:
             thread.exit.set()

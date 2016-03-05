@@ -282,6 +282,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         return_subject = u'Re: Info list'
         return_domains = []
         return_filters = []
+        urls = []
         for line in lines:
             domain_match = re.search(r'^domain:\s*([^\n]+)$', line)
             if domain_match:
@@ -307,6 +308,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                 continue
             Actions.send_message(self.praw, author, u"RE: info list", u"Text not recognized:  \n{}."\
                                          .format(line))
+            return False
 
         if return_domains:
             return_subject += u' w/ domains: {}'.format(u', '.join(return_domains))
@@ -336,8 +338,8 @@ class BlacklistQuery(RedditThread.RedditThread):
                         results.extend([channel[0] for channel in w_chann])
 
             else:
-                b_chann = blacklist.get_blacklisted_channels()
-                w_chann = blacklist.get_whitelisted_channels()
+                b_chann = blacklist.get_blacklisted_channels('')
+                w_chann = blacklist.get_whitelisted_channels('')
 
                 if b_chann or w_chann:
                     results.append(u'Channel results for domain {}:'\
@@ -373,6 +375,7 @@ class BlacklistQuery(RedditThread.RedditThread):
         found_channels = []
         valid_urls = []
         invalid_urls = []
+        return_string = u""
         for blacklist in self.blacklists:
             my_lines = [line for line in lines if blacklist.check_domain(line)]
             overlap = [x for x in my_lines if x in valid_urls]
@@ -394,7 +397,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                 else:
                     valid_urls.remove(my_lines[i])
                     invalid_urls.append(my_lines[i])
-            return_string = self.__create_table((u'Date', u'Link'
+            return_string += self.__create_table((u'Date', u'Link'
                                                  , u'Submitter',u'Channel', u'Domain', u'Deleted', u'Exception'))
             #with our list of channel ids, query DB for submissions
             if my_channel_ids:
@@ -418,7 +421,7 @@ class BlacklistQuery(RedditThread.RedditThread):
                         else:
                             return_string += self.__table_entry((u'Not Found', u'Not Found', id, blacklist.domains[0],
                                                                 u'N/A', u'N/A'))
-
+        invalid_urls.extend([x for x in my_lines if x not in valid_urls])
         if invalid_urls:
             return_string += u'\n\n'
             return_string += u"Channel data for the following urls could not be obtained:\n"
@@ -447,6 +450,14 @@ class BlacklistQuery(RedditThread.RedditThread):
                 return self.__info_channels(author, subject, text, limit)
             elif self.user_command.search(subject):
                 return self.__info_user(author, subject, text, limit)
+            else:
+                return Actions.send_message(self.praw,
+                                            author,
+                                            u'Message text not recognized',
+                                            u'Message w/ \n'
+                                            u'subject: {}\n'.format(subject) +
+                                            u'and body: {}\n'.format(text) +
+                                            u'not recognized, please consult documentation or help.')
         except Exception as e:
             logging.exception(e)
             Actions.send_message(self.praw,

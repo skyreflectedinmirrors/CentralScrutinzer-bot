@@ -9,6 +9,7 @@ import apiclient.errors
 import re
 import logging
 import utilitymethods
+import ssl
 
 #base class for extractors
 class IdentificationExtractor(object):
@@ -83,12 +84,14 @@ class SoundCloudExtractor(IdentificationExtractor):
             return response.playback_count
         except AttributeError:
             try:
-                return response.user['playback_count']
-            except AttributeError:
+                if response.track_count > 0:
+                    return max(track['playback_count'] for track in response.tracks)
+                return None
+            except Exception:
                 logging.info(u"Deleted or private soundcloud user requested: {}".format(url))
                 return None
         except Exception, e:
-            logging.error(u"Could not find soundcloud username or permalink for url: {}".format(url))
+            logging.error(u"Could not find soundcloud viewcount for url: {}".format(url))
             logging.debug(str(e))
         return None
 
@@ -129,12 +132,18 @@ class YoutubeExtractor(IdentificationExtractor):
             pass
             #logging.error("Bad request for youtube id " + str(id))
             #return None
+        except ssl.SSLError:
+            #catch the occasional bad call and force retry
+            return None
 
         try:
             channel_id = response.get("items")[0].get("snippet").get("channelId")
         except IndexError:
             #try it as a channel
             channel_id = id
+        except ssl.SSLError:
+            #catch the occasional bad call and force retry
+            return None
         except Exception, e:
             logging.error(u"Unknown error detecting channelId for youtube url " + str(url))
 
@@ -146,6 +155,9 @@ class YoutubeExtractor(IdentificationExtractor):
         # ask for channel w/ id
         try:
             response = self.youtube.channels().list(part='snippet', id=channel_id).execute()
+        except ssl.SSLError:
+            #catch the occasional bad call and force retry
+            return None
         except apiclient.errors.HttpError:
             logging.error(u"Bad request for youtube channel id {} and url {} ".format(str(channel_id), str(url)))
             return None
@@ -159,6 +171,9 @@ class YoutubeExtractor(IdentificationExtractor):
                 logging.warning(u'Retrying channel_id for id {} w/ 11 character id {}'.format(id, id[:11]))
                 return self.channel_id(url, retry_id=id[:11])
             logging.info(u"Deleted or private youtube channel requested: {}, for url {}".format(id, str(url)))
+            return None
+        except ssl.SSLError:
+            #catch the occasional bad call and force retry
             return None
         except Exception, e:
             logging.exception(e)
@@ -202,13 +217,22 @@ class YoutubeExtractor(IdentificationExtractor):
         response = None
         try:
             response = self.youtube.videos().list(part='statistics', id=id).execute()
+        except ssl.SSLError:
+            #catch the occasional bad call and force retry
+            return None
         except apiclient.errors.HttpError:
             logging.info(u"Could not determine views for video: {}".format(id))
             return None
+        except UnicodeDecodeError, e:
+            logging.log(u"UTF exception for id={}, url={}".format(id, url))
+            logging.exception(e)
 
         try:
             viewcount = response.get("items")[0].get("statistics").get("viewCount")
             return int(viewcount)
+        except ssl.SSLError:
+            #catch the occasional bad call and force retry
+            return None
         except IndexError:
             logging.error(u"No items found for youtube id {} for url {}".format(id, str(url)))
             #retry with 11 character limit

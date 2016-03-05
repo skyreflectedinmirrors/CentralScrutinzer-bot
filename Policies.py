@@ -54,7 +54,7 @@ class DefaultPolicy(object):
     on_blacklist = Actions.remove_post
     on_whitelist = lambda x, y: logging.info("Whitelisting {}".format(y.name)) #Actions.approve_post
     youtube_viewcount_limit = 500000
-    soundcloud_viewcount_limit = None #still taken care of by raddit-bot
+    soundcloud_viewcount_limit = 500000
     exception_list = []
     def on_viewcount(self, post, website, viewcount, limit):
         self.remove_and_post(post, self.format_viewcount(Actions.get_username(post), post.short_link, website, viewcount, limit))
