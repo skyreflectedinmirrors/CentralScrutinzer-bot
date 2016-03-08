@@ -14,7 +14,8 @@ def main():
     #if not __debug__:
     #    raise Exception
     cred = CredentialsImport.CRImport("credentials.cred")
-    cred['USERAGENT'] += ' ({})'.format(cred['SUBREDDIT'])
+    cred['USERAGENT'] = ('User-Agent/central-scrutinizer by'
+                         ' arghdos v{}, for subreddit /r/{}'.format(cred['VERSION'], cred['SUBREDDIT']))
     mypraw = u.create_multiprocess_praw(cred)
     pol = Policies.DefaultPolicy(cred['SUBREDDIT'])
     if __debug__:
