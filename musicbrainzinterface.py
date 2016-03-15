@@ -1,7 +1,6 @@
 import musicbrainzngs
 import logging
 from dateutil.parser import parse as parsedate
-from datetime import datetime
 
 
 class MusicBrainzWrapper(object):

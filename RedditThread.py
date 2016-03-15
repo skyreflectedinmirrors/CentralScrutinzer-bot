@@ -1,8 +1,3 @@
-#!/usr/bin/env python2.7
-
-import threading
-import CentralScrutinizer
-import Policies
 class RedditThread(object):
     """
     A class designed to be used as a thread in the Central Scrutinizer
@@ -13,20 +8,20 @@ class RedditThread(object):
     """
     def __init__(self, owner, policy):
         self.owner = owner
+        self.wait = owner.wait
+        self.exit = owner.exit
         self.policy = policy
-        self.wait = threading.Event()
-        self.exit = threading.Event()
         self.instances = [0 for i in range(policy.Errors_Before_Halt)]
 
     def check_status(self):
-        #push back an instance
+        # push back an instance
         self.instances.insert(0, 0)
         self.instances = self.instances[:self.policy.Errors_Before_Halt]
-        #check for pause
+        # check for pause
         while self.wait.is_set():
             self.wait.wait(self.policy.Pause_Period)
 
-        #check for exit
+        # check for exit
         if self.exit.is_set():
             self.shutdown()
             return False
