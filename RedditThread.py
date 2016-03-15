@@ -28,7 +28,7 @@ class RedditThread(object):
         return True
 
     def shutdown(self):
-        pass
+        raise NotImplementedError
 
     def log_error(self):
         self.instances[0] = 1

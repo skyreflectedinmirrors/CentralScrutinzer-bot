@@ -79,3 +79,15 @@ class TestMusicBrainz(unittest.TestCase):
             result = mbz.get_release_date('Talking Heads', 'This Must Be The Place (Naive Melody)', 100)
             self.assertTrue(result.year == 1983)
 
+    def test_invalid_host(self):
+        with mbi.MusicBrainzWrapper(self.cred, host='notahost.com.org', useragent=self.user_agent,
+                                max_tries=self.max_tries, wait=self.wait) as mbz:
+            result = mbz.get_release_date('Talking Heads', 'This Must Be The Place (Naive Melody)')
+            self.assertTrue(result == mbi.ErrorCodes.malformed_host)
+
+    def test_bad_host(self):
+        with mbi.MusicBrainzWrapper(self.cred, host='notahost.org', useragent=self.user_agent,
+                                max_tries=self.max_tries, wait=self.wait) as mbz:
+            result = mbz.get_release_date('Talking Heads', 'This Must Be The Place (Naive Melody)')
+            self.assertTrue(result == mbi.ErrorCodes.no_connection)
+

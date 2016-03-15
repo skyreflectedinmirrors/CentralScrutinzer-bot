@@ -26,6 +26,15 @@ class ThreadTester(object):
         self.pause = True
 
 
+class exit_rt(rt.RedditThread):
+    def __init__(self, tt1, tt2):
+        super(exit_rt, self).__init__(tt1, tt2)
+        self.exitset = False
+
+    def shutdown(self):
+        self.exitset = True
+
+
 def create_and_wait():
     tt = ThreadTester()
     red = rt.RedditThread(tt, tt)
@@ -48,6 +57,14 @@ class TestRedditThread(unittest.TestCase):
             red.check_status()
             red.log_error()
         self.assertTrue(tt.pause)
+
+    def test_exit(self):
+        tt = ThreadTester()
+        red = exit_rt(tt, tt)
+        exit_event.set()
+        red.check_status()
+        exit_event.clear()
+        self.assertTrue(red.exitset)
 
     def test_wait(self):
         import os
