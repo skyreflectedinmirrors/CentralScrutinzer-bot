@@ -4,6 +4,6 @@ def CRImport(file):
         lines = fdata.readlines()
     cred = {}
     for line in lines:
-        line = line.split("=")
+        line = line.split(u"=")
         cred[line[0].strip()] = line[1].strip()
     return cred

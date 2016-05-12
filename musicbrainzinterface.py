@@ -1,10 +1,10 @@
 import musicbrainzngs
 import logging
 from dateutil.parser import parse as parsedate
-from enum import Enum
+from enum import IntEnum
 
 
-class ErrorCodes(Enum):
+class ErrorCodes(IntEnum):
     success, no_connection, malformed_host, timeout, critical_failure = range(5)
 
 error_strings = {ErrorCodes.no_connection : 'Could not connect to host.',
