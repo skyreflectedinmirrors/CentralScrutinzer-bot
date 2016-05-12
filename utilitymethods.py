@@ -4,9 +4,18 @@ import logging
 import praw.errors as errors
 import Actions
 import socket
+import subprocess
 
 import re
 from urlparse import urlsplit
+
+
+def create_useragent(credentials, test=False):
+    credentials[u'USERAGENT'] = (u'User-Agent/central-scrutinizer{} by'
+                                u' arghdos v{}, for subreddit /r/{}'.format(u'-unittest' if test else '',
+                                                                           credentials[u'VERSION'],
+                                                                           credentials[u'SUBREDDIT']))
+
 def domain_extractor(url):
     """returns the netloc part of a url w/ exception handling
 
@@ -80,24 +89,3 @@ def create_praw(credentials):
         logging.error(str(e))
         logging.critical("Failed to create PRAW object: bad credentials")
         return None
-
-def get_subreddit(credentials, praw, subreddit = None):
-    try:
-        subreddit = subreddit if subreddit else credentials['SUBREDDIT']
-        sub = praw.get_subreddit(subreddit)
-        logging.info("Retrieved subreddit object")
-        return sub
-    except Exception, e:
-        logging.error(str(e))
-        logging.warning("Failed to retrieve subreddit object")
-        return None
-
-def getCaptcha(sub):
-    captcha = {}
-    try:
-        post = sub.submit("testpost", text="please ignore", raise_captcha_exception=True)
-    except errors.InvalidCaptcha, err:
-        captcha['iden'] = err.response['captcha']
-        print 'please enter captcha resposne for\n' + "www.reddit.com/captcha/" + captcha['iden'] + ".png"
-        captcha['captcha'] = raw_input()
-    return captcha
