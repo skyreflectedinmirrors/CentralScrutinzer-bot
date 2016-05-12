@@ -5,6 +5,7 @@ error.log
 /.idea
 test.py
 Todo.txt
+oauth.ini
 
 #database file
 *.db
