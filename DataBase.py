@@ -2,11 +2,50 @@
 
 import sqlite3
 import logging
-import datetime
 import re
 import Blacklist
 import CentralScrutinizer
+from enum import IntEnum
 
+
+class ErrorCodes(IntEnum):
+    success, locked = range(2)
+
+error_strings = {ErrorCodes.locked : 'Database locked'}
+
+
+def error_handler(func):
+    def error_handler(*args, **kwargs):
+        errcode = ErrorCodes.success
+        e = None
+        try:
+            x = func(*args, **kwargs)
+            if isinstance(x, ErrorCodes):
+                errcode = x
+            return x
+        except Exception, e:
+            logging.critical(e)
+        finally:
+            if errcode != ErrorCodes.critical_failure and errcode != ErrorCodes.success:
+                logging.warn(error_strings[errcode])
+                logging.debug(e.cause)
+
+    return error_handler
+
+class _ErrorCodes:
+    def __init__(self):
+        pass
+
+    cannot_open, locked = range(1, 2)
+    codes = [cannot_open]
+    str_error_codes = {cannot_open: u'The database file cannot be opened'}
+
+    def check_error(self, exception):
+        if isinstance(exception, Exception):
+            exception = str(exception)
+        return next((x for x in self.codes if self.str_error_codes[x] == exception), None)
+
+ErrorCodes = _ErrorCodes()
 
 class DataBaseWrapper(object):
     def __init__(self, databasefile, create_on_enter=True):
@@ -15,6 +54,7 @@ class DataBaseWrapper(object):
 
     """A wrapper to the SQL Database, designed be used in conjunction with a 'with'"""
 
+    @error_handler
     def __enter__(self):
         class DataBase:
             """
@@ -37,11 +77,10 @@ class DataBaseWrapper(object):
                     self.db.create_function("domain_eq", 2, self.domain_eq)
                 except (sqlite3.OperationalError, sqlite3.Error) as e:
                     if e.message == 'database is locked':
-                        self.__on_lock()
+                        return ErrorCodes.locked
                     else:
                         logging.debug(str(e))
-                        logging.critical("Cannot open database file " + databasefile)
-                    raise e
+                        raise e
 
             def __create_table(self):
                 """Creates the post table if it does not exist already"""
@@ -61,16 +100,13 @@ class DataBaseWrapper(object):
                         if str(e) == "index blist already exists":
                             pass
                         else:
-                            logging.critical("Could not create index blist on table channel_record")
-                            logging.debug(str(e))
+                            raise e
                     self.db.commit()
                 except sqlite3.OperationalError as e:
                     if e.message == 'database is locked':
                         self.__on_lock()
                     else:
-                        logging.critical("Could not create table channel_record")
-                        logging.debug(str(e))
-                    return False
+                        raise e
 
                 try:
                     self.cursor.execute('''create table if not exists reddit_record
@@ -88,20 +124,18 @@ class DataBaseWrapper(object):
                         if str(e) == "index channel already exists":
                             pass
                         elif e.message == 'database is locked':
-                            self.__on_lock()
+                            return ErrorCodes.locked
                         else:
-                            logging.critical("Could not create index channel on table reddit_record")
-                            logging.debug(str(e))
+                            raise e
                     try:
                         self.cursor.execute('create index mydate on reddit_record(date_added)')
                     except sqlite3.OperationalError, e:
                         if str(e) == "index mydate already exists":
                             pass
                         elif e.message == 'database is locked':
-                            self.__on_lock()
+                            return ErrorCodes.locked
                         else:
-                            logging.critical("Could not create index mydate on table reddit_record")
-                            logging.debug(str(e))
+                            raise e
 
                     try:
                         self.cursor.execute('create index submit on reddit_record(submitter)')
@@ -109,31 +143,50 @@ class DataBaseWrapper(object):
                         if str(e) == "index submit already exists":
                             pass
                         elif e.message == 'database is locked':
-                            self.__on_lock()
+                            return ErrorCodes.locked
                         else:
-                            logging.critical("Could not create index submit on table reddit_record")
-                            logging.debug(str(e))
-
+                            raise e
                     try:
                         self.cursor.execute('create index baddelete on reddit_record(processed, exception)')
                     except sqlite3.OperationalError, e:
                         if str(e) == "index baddelete already exists":
                             pass
                         elif e.message == 'database is locked':
-                            self.__on_lock()
+                            return ErrorCodes.locked
                         else:
-                            logging.critical("Could not create index baddelete on table reddit_record")
-                            logging.debug(str(e))
+                            raise e
 
                     self.db.commit()
                 except (sqlite3.OperationalError, sqlite3.Error) as e:
                     if str(e) == 'database is locked':
-                        self.__on_lock()
+                        return ErrorCodes.locked
                     else:
-                        logging.debug(str(e))
-                        logging.critical("Could not create table reddit_record")
-                    return False
-                return True
+                        raise e
+
+                try:
+                    self.cursor.execute('''create table if not exists artist_record
+                    (name text primary key,
+                    has_official_release integer default 0,
+                    last_posted timestamp default current_timestamp,
+                    last_post text,
+                    repost_status integer default 0)''')
+                    try:
+                        self.cursor.execute('create index artist_repost on reddit_record(last_posted, repost_status)')
+                    except sqlite3.OperationalError as e:
+                        if str(e) == "index artist_repost already exists":
+                            pass
+                        elif e.message == 'database is locked':
+                            return ErrorCodes.locked
+                        else:
+                            raise e
+
+                    self.db.commit()
+                except (sqlite3.OperationalError, sqlite3.Error) as e:
+                    if str(e) == 'database is locked':
+                        return ErrorCodes.locked
+                    else:
+                        raise e
+                return ErrorCodes.success
 
             def newest_reddit_entries(self, limit=1):
                 """
