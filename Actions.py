@@ -170,7 +170,7 @@ def get_unread(reddit, limit=10):
     """
     comments = None
     try:
-        comments = reddit.get_unread(limit = limit)
+        comments = reddit.inbox.unread(limit = limit)
     except requests.exceptions.HTTPError, e:
         logging.error("Unread mail for user could not be retrieved")
         if __debug__:
