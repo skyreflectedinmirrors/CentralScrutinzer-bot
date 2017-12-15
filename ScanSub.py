@@ -10,6 +10,7 @@ import Actions
 import utilitymethods
 import socket
 from six.moves.urllib.error import HTTPError
+from prawcore import NotFound
 import RedditThread
 import time
 import requests
@@ -272,10 +273,9 @@ class SubScanner(RedditThread.RedditThread):
                 else:
                     logging.error(str(e))
                 return scan_result.Error
-            except HTTPError, e:
+            except (HTTPError, NotFound) as e:
                 # bad resolve
                 logging.warn('Bad resolve for post {}'.format(post))
-                logging.exception(e)
             except Exception, e:
                 logging.critical("Unknown exception occured while obtaining post data for {}".format(self.descriptor))
                 logging.exception(e)

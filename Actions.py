@@ -87,7 +87,7 @@ def get_posts(sub, limit=20):
 
 def make_comment(post, text, dist=False):
     try:
-        comment = post.add_comment(text)
+        comment = post.reply(text)
         if dist:
             comment.distinguish()
         return comment
