@@ -41,9 +41,9 @@ def approve_post(self, post):
 def remove_post(self, post, mark_spam=True, delete=False):
     try:
         if delete:
-            post.delete()
+            post.mod.delete()
         else:
-            post.remove(spam=mark_spam)
+            post.mod.remove(spam=mark_spam)
         return True
     except Exception, e:
         logging.error("Post " + str(post.id) + " was not removed")
