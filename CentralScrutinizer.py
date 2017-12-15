@@ -28,7 +28,7 @@ class CentralScrutinizer(object):
         if debug:
             Log.setLevel(logging.DEBUG)
             # create file handler which logs even debug messages
-            fh = logging.RotatingFileHandler('error.log')
+            fh = logging.handlers.RotatingFileHandler('error.log')
             fh.setLevel(logging.DEBUG)
             # create console handler with a higher log level
             ch = logging.StreamHandler(sys.stdout)
@@ -42,7 +42,7 @@ class CentralScrutinizer(object):
             Log.addHandler(ch)
         else:
             # create file handler which logs even debug messages
-            fh = logging.RotatingFileHandler('error.log')
+            fh = logging.handlers.RotatingFileHandler('error.log')
             fh.setLevel(logging.ERROR)
             # create console handler with a higher log level
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -51,7 +51,7 @@ class CentralScrutinizer(object):
             Log.addHandler(fh)
 
         # add praw log
-        handler = logging.RotatingFileHandler('prmulti.log')
+        handler = logging.handlers.RotatingFileHandler('prmulti.log')
         handler.setLevel(logging.DEBUG)
         logger = logging.getLogger('prawcore')
         logger.setLevel(logging.DEBUG)
