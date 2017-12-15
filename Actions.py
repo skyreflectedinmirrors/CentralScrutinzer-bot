@@ -253,7 +253,10 @@ def get_by_ids(reddit, id_list):
     if not id_list:
         return None
     try:
-        return reddit.get_submissions(id_list)
+        submissions = []
+        for reddit_id in id_list:
+            submissions.append(reddit.Submission(id=reddit_id))
+        return submissions
     except TypeError, e:
         logging.error("At least one non-string in id_list passed to get_by_ids")
     except Exception, e:
