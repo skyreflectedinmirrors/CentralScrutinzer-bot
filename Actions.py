@@ -203,7 +203,7 @@ def send_message(reddit, user, subject, message):
         if len(message) >= 10000:
             temp = "  \nMessage too long, truncated to 10000 characters..."
             message = message[:10000 - len(temp)] + temp
-        reddit.send_message(user, subject, message)
+        user = reddit.redditor(user).message(subject, message)
     except requests.exceptions.HTTPError, e:
         logging.error("Message " + subject + " could not be sent to user " + user)
         if __debug__:
