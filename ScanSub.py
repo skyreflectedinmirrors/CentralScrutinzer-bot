@@ -9,7 +9,7 @@ import DataBase
 import Actions
 import utilitymethods
 import socket
-import CentralScrutinizer
+from six.moves.urllib.error import HTTPError
 import RedditThread
 import time
 import requests
@@ -259,20 +259,27 @@ class SubScanner(RedditThread.RedditThread):
             return scan_result.Error
         found_old = False
 
-        try:
-            #Actions.resolve_url(post.url)
-            post_data = [(post.created_utc, post.name, post.url, Actions.get_username(post), post) for post in posts if
-                         not post.is_self]
-        except socket.error, e:
-            if e.errno == 10061:
-                logging.critical("praw-multiprocess not started!")
-            else:
-                logging.error(str(e))
-            return scan_result.Error
-        except Exception, e:
-            logging.critical("Unknown exception occured while obtaining post data for {}".format(self.descriptor))
-            logging.exception(e)
-            return scan_result.Error
+        post_data = []
+        for post in posts:
+            try:
+                if not post.is_self:
+                    post_data.append((
+                        post.created_utc, post.name, post.url,
+                        Actions.get_username(post), post))
+            except socket.error, e:
+                if e.errno == 10061:
+                    logging.critical("praw-multiprocess not started!")
+                else:
+                    logging.error(str(e))
+                return scan_result.Error
+            except HTTPError, e:
+                # bad resolve
+                logging.warn('Bad resolve for post {}'.format(post))
+                logging.exception(e)
+            except Exception, e:
+                logging.critical("Unknown exception occured while obtaining post data for {}".format(self.descriptor))
+                logging.exception(e)
+                return scan_result.Error
 
         with DataBase.DataBaseWrapper(self.file, False) as db:
             exists = db.reddit_exists([post[1] for post in post_data])

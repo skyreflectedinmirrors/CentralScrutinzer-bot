@@ -57,7 +57,7 @@ class DefaultPolicy(object):
     soundcloud_viewcount_limit = 500000
     exception_list = []
     def on_viewcount(self, post, website, viewcount, limit):
-        self.remove_and_post(post, self.format_viewcount(Actions.get_username(post), post.short_link, website, viewcount, limit))
+        self.remove_and_post(post, self.format_viewcount(Actions.get_username(post), post.shortlink, website, viewcount, limit))
 
     Strike_Count_Max = 10 #global strike limit across all users
     User_Strike_Count_Max = 3 #user strike limit
