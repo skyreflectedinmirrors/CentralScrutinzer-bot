@@ -89,7 +89,7 @@ def create_praw(credentials):
 def get_subreddit(credentials, praw, subreddit = None):
     try:
         subreddit = subreddit if subreddit else credentials['SUBREDDIT']
-        sub = praw.get_subreddit(subreddit)
+        sub = praw.subreddit(subreddit)
         logging.info("Retrieved subreddit object")
         return sub
     except Exception, e:

@@ -827,7 +827,7 @@ def main():
     #create my reddit
     r = u.create_praw(credentials)
 
-    sub = r.get_subreddit(credentials['SUBREDDIT'])
+    sub = r.subreddit(credentials['SUBREDDIT'])
 
     passed &= testBandcampExtractor(credentials)
 
