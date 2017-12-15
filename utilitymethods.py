@@ -1,4 +1,3 @@
-import praw.handlers as h
 import praw as p
 import logging
 import praw.errors as errors
@@ -56,11 +55,9 @@ def clear_sub(credentials, sub, num=20):
 
 def create_multiprocess_praw(credentials):
     #create my reddit
-    my_handler = h.MultiprocessHandler()
     try:
-        r = p.Reddit(user_agent=credentials['USERAGENT'], handler=my_handler)
+        r = p.Reddit(user_agent=credentials['USERAGENT'])
         r.login(username=credentials['USERNAME'], password=credentials['PASSWORD'])
-        logging.info("Multi-process handler sucessfully started")
         return r
     except socket.error, e:
         logging.error(str(e))
