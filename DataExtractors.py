@@ -55,6 +55,7 @@ class SoundCloudExtractor(IdentificationExtractor):
             #resolve the url
             response = self.soundcloud.get('/resolve', url=url)
         except Exception, e:
+            logging.exception(e)
             logging.error(u"Bad resolve for soundcloud " + str(url))
             return None
 
@@ -77,6 +78,7 @@ class SoundCloudExtractor(IdentificationExtractor):
             #resolve the url
             response = self.soundcloud.get('/resolve', url=url)
         except Exception, e:
+            logging.exception(e)
             logging.error(u"Bad resolve for soundcloud " + str(url))
             return None
 
@@ -164,6 +166,8 @@ class YoutubeExtractor(IdentificationExtractor):
 
         try:
             #should be the first id in the list
+            if response.get("items")[0].get("snippet") is None:
+                logging.debug('Bad CID response:\n\n' + response)
             channel_title = response.get("items")[0].get("snippet").get("title")
         except IndexError:
             #retry with 11 character limit
@@ -177,6 +181,7 @@ class YoutubeExtractor(IdentificationExtractor):
             return None
         except Exception, e:
             logging.exception(e)
+            return None
         return channel_title, u"http://www.youtube.com/channel/{}".format(channel_id)
 
 
@@ -228,6 +233,8 @@ class YoutubeExtractor(IdentificationExtractor):
             logging.exception(e)
 
         try:
+            if response.get("items")[0].get("statistics") is None:
+                logging.debug('Bad Views response:\n\n' + response)
             viewcount = response.get("items")[0].get("statistics").get("viewCount")
             return int(viewcount)
         except ssl.SSLError:
@@ -241,6 +248,7 @@ class YoutubeExtractor(IdentificationExtractor):
                 return self.get_views(url, retry_id=id[:11])
             return None
         except Exception, e:
+            logging.exception(e)
             logging.error(u"Unknown error detecting viewCount for youtube url " + str(url))
             return None
 
