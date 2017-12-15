@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 import logging
-import praw.errors
+import praw.exceptions
 import requests
 import praw.helpers as helper
 import urlparse
