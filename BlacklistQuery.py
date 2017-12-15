@@ -687,7 +687,7 @@ class BlacklistQuery(RedditThread.RedditThread):
 
         self.message_cache.append(message.id)
         # don't need to see this again
-        message.mark_as_read()
+        message.mark_read()
         return result
 
 
