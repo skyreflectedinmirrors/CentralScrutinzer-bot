@@ -6,7 +6,6 @@ import logging
 from threading import Lock
 import re
 import utilitymethods
-from praw.objects import WikiPage
 import Actions
 import DataBase
 
