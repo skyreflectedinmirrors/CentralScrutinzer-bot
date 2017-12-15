@@ -89,7 +89,7 @@ def make_comment(post, text, dist=False):
     try:
         comment = post.reply(text)
         if dist:
-            comment.distinguish()
+            comment.mod.distinguish()
         return comment
     except praw.exceptions.APIException, a:
         if a.error_type == 'DELETED_LINK':
