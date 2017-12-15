@@ -395,7 +395,7 @@ class ModLogScanner(SubScanner):
     def get_posts(self, lim):
         # first ask for posts
         try:
-            posts = self.sub.get_mod_log(action="removelink", limit=lim)
+            posts = self.sub('mod').mod.log(action="removelink", limit=lim)
             posts = [posts.next().target_fullname for i in range(lim)]
             return Actions.get_by_ids(self.praw, posts)
         except Exception, e:

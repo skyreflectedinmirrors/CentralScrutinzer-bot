@@ -76,7 +76,7 @@ def unban_user(sub, user):
 
 def get_posts(sub, limit=20):
     try:
-        posts = sub.get_new(limit=limit)
+        posts = sub.new(limit=limit)
         return posts
     except Exception, e:
         logging.error("Posts retrieved correctly")
@@ -255,7 +255,7 @@ def get_by_ids(reddit, id_list):
     try:
         submissions = []
         for reddit_id in id_list:
-            submissions.append(reddit.Submission(id=reddit_id))
+            submissions.append(reddit.submission(id=reddit_id))
         return submissions
     except TypeError, e:
         logging.error("At least one non-string in id_list passed to get_by_ids")
