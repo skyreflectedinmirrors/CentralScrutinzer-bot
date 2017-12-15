@@ -183,7 +183,10 @@ def get_unread(reddit, limit=10):
 
 def get_mods(reddit, sub):
     try:
-        return reddit.get_moderators(sub)
+        mods = []
+        for mod in sub.moderator():
+            mods.append(mod)
+        return mods
     except Exception, e:
         logging.error("Could not retrieve moderators for sub: " + str(sub))
         if __debug__:
