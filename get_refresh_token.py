@@ -45,11 +45,11 @@ def main():
           'field and select the script radio button.')
     print('Put http://localhost:8080 in the redirect uri field and '
           'click create app')
-    client_id = input('Enter the client ID, it\'s the line just under '
+    client_id = raw_input('Enter the client ID, it\'s the line just under '
                       'Personal use script at the top: ')
-    client_secret = input('Enter the client secret, it\'s the line next '
+    client_secret = raw_input('Enter the client secret, it\'s the line next '
                           'to secret: ')
-    commaScopes = input('Now enter a comma separated list of scopes, or '
+    commaScopes = raw_input('Now enter a comma separated list of scopes, or '
                         'all for all tokens: ')
 
     if commaScopes.lower() == 'all':
