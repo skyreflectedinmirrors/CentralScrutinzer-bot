@@ -2,7 +2,6 @@
 import logging
 import praw.exceptions
 import requests
-import praw.helpers as helper
 import urlparse
 import httplib
 
@@ -108,8 +107,7 @@ def make_comment(post, text, dist=False):
 
 def get_comments(post):
     try:
-        comments = helper.flatten_tree(post.comments)
-        return comments
+        post.comments.replace_more().list()
     except Exception, e:
         logging.error("Comments not retrieved successfully")
         if __debug__:
