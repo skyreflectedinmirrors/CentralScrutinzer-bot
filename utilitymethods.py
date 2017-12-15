@@ -1,6 +1,6 @@
 import praw as p
 import logging
-import praw.errors as errors
+import praw.exceptions as errors
 import Actions
 import socket
 

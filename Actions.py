@@ -10,23 +10,19 @@ import httplib
 def make_post_text(sub, title, message, distinguish=False):
     try:
         # create a post
-        post = sub.submit(title=title, text=message, raise_captcha_exception=True)
+        post = sub.submit(title=title, text=message)
         return post
-    except praw.errors.InvalidCaptcha, e:
-        logging.error("Invalid captcha detected")
     except Exception, e:
         logging.error("Post with title: " + title + "\tmessage: " + message + " not created.")
         if __debug__:
             logging.exception(e)
     return None
 
-def make_post_url(sub, title, url, distinguish=False):
+def make_post_url(sub, title, url):
     try:
         # create a post
-        post = sub.submit(title=title, url=url, raise_captcha_exception=True)
+        post = sub.submit(title=title, url=url)
         return post
-    except praw.errors.InvalidCaptcha, e:
-        logging.error("Invalid captcha detected")
     except Exception, e:
         logging.error("Post with title: " + title + "\turl: " + url + " not created.")
         if __debug__:
@@ -96,7 +92,7 @@ def make_comment(post, text, dist=False):
         if dist:
             comment.distinguish()
         return comment
-    except praw.errors.APIException, a:
+    except praw.exceptions.APIException, a:
         if a.error_type == 'DELETED_LINK':
             logging.info('Comment not made on post {}, post already deleted'.format(post.name))
             pass
