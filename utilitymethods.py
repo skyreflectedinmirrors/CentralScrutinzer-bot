@@ -56,8 +56,12 @@ def clear_sub(credentials, sub, num=20):
 def create_multiprocess_praw(credentials):
     #create my reddit
     try:
-        r = p.Reddit(user_agent=credentials['USERAGENT'])
-        r.login(username=credentials['USERNAME'], password=credentials['PASSWORD'])
+        r = p.Reddit(user_agent=credentials['USERAGENT'],
+                     client_id=credentials['CLIENT_ID'],
+                     client_secret=credentials['CLIENT_SECRET'],
+                     username=credentials['USERNAME'],
+                     password=credentials['PASSWORD'],
+                     refresh_token=credentials['REFRESH_TOKEN'])
         return r
     except socket.error, e:
         logging.error(str(e))
@@ -70,8 +74,12 @@ def create_multiprocess_praw(credentials):
 
 def create_praw(credentials):
     try:
-        r = p.Reddit(user_agent=credentials['USERAGENT'])
-        r.login(username=credentials['USERNAME'], password=credentials['PASSWORD'])
+        r = p.Reddit(user_agent=credentials['USERAGENT'],
+                     client_id=credentials['CLIENT_ID'],
+                     client_secret=credentials['CLIENT_SECRET'],
+                     username=credentials['USERNAME'],
+                     password=credentials['PASSWORD'],
+                     refresh_token=credentials['REFRESH_TOKEN'])
         return r
     except socket.error, e:
         logging.error(str(e))
@@ -88,13 +96,3 @@ def get_subreddit(credentials, praw, subreddit = None):
         logging.error(str(e))
         logging.warning("Failed to retrieve subreddit object")
         return None
-
-def getCaptcha(sub):
-    captcha = {}
-    try:
-        post = sub.submit("testpost", text="please ignore", raise_captcha_exception=True)
-    except errors.InvalidCaptcha, err:
-        captcha['iden'] = err.response['captcha']
-        print 'please enter captcha resposne for\n' + "www.reddit.com/captcha/" + captcha['iden'] + ".png"
-        captcha['captcha'] = raw_input()
-    return captcha
